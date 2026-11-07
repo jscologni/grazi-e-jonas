@@ -5,6 +5,22 @@ import App from '../src/App'
 import '../src/index.css'
 import { addMonths, iso, monthOf } from '../src/lib/format'
 import { StoreCtx, type Ctx, type Data } from '../src/lib/store'
+import { supabase } from '../src/lib/supabase'
+
+// Na demonstração nada vai para o banco de verdade: toda chamada "dá certo" sem gravar.
+function falso(): unknown {
+  let unico = false
+  const p: unknown = new Proxy(() => {}, {
+    get: (_t, k) => {
+      if (k === 'then') return (ok: (v: unknown) => void) => ok({ data: unico ? { id: crypto.randomUUID() } : [], error: null })
+      if (k === 'single' || k === 'maybeSingle') unico = true
+      return () => p
+    },
+    apply: () => p,
+  })
+  return p
+}
+Object.assign(supabase, { from: () => falso(), rpc: () => falso() })
 
 const J = 'u-jonas', G = 'u-grazi'
 const mes = monthOf(new Date())

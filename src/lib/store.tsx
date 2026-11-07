@@ -66,8 +66,13 @@ export const useStore = () => {
 /** Erro do Supabase em português simples */
 export const say = (e: unknown) => {
   const msg = (e as { message?: string })?.message ?? String(e)
-  if (/Failed to fetch|NetworkError/i.test(msg)) return 'Sem internet agora. Tente de novo quando a conexão voltar.'
-  return msg
+  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Sem internet agora. Tente de novo quando a conexão voltar.'
+  if (/JWT|session|not authenticated/i.test(msg)) return 'Sua entrada expirou. Feche e abra o app de novo.'
+  if (/row-level security|permission denied/i.test(msg)) return 'Sem permissão para isso nesta casa.'
+  if (/duplicate key|unique/i.test(msg)) return 'Isso já está cadastrado.'
+  if (/invalid input syntax|violates|check constraint|null value/i.test(msg)) return 'Não deu para salvar: algum dado veio errado. Tente de novo.'
+  // mensagens nossas (do banco, em português) passam direto; o resto vira um aviso genérico
+  return /[ãçéêíóõú]|Entre |Código|casa/i.test(msg) ? msg : 'Não deu para salvar agora. Tente de novo.'
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -81,7 +86,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((msg: string, tone: 'ok' | 'erro' = 'ok') => {
     const id = Date.now() + Math.random()
-    setToasts(t => [...t, { id, msg, tone }])
+    // o mesmo aviso não empilha: se já está na tela, não repete
+    setToasts(t => t.some(x => x.msg === msg) ? t : [...t.slice(-2), { id, msg, tone }])
     window.setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), tone === 'erro' ? 5000 : 2600)
   }, [])
 
