@@ -21,7 +21,7 @@ Funciona no navegador e pode ser instalado na tela inicial do celular (PWA).
 - Banco, login e tempo real no Supabase (projeto `grazi-e-jonas`, região São Paulo).
   A estrutura do banco está em [`supabase/schema.sql`](supabase/schema.sql). Cada pessoa só enxerga os dados
   da casa de que é membro (Row Level Security).
-- Publicado no GitHub Pages a cada envio para `main` (`.github/workflows/deploy.yml`).
+- Publicado no GitHub Pages pelo ramo `gh-pages`: rode `npm run publicar`.
 
 ## Rodar no computador
 
