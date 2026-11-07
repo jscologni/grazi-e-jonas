@@ -1,0 +1,73 @@
+import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useState } from 'react'
+import { monthOf } from './lib/format'
+import { useStore } from './lib/store'
+import { Casa as CasaTela } from './screens/Casa'
+import { Dinheiro } from './screens/Dinheiro'
+import { Casa as CriarCasa, Login } from './screens/Entrar'
+import { Inicio } from './screens/Inicio'
+import { Lancar } from './screens/Lancar'
+import { Lista } from './screens/Lista'
+import { Toasts } from './ui'
+
+type Aba = 'inicio' | 'lista' | 'dinheiro' | 'casa'
+const ABAS: { id: Aba; nome: string; ico: string }[] = [
+  { id: 'inicio', nome: 'Início', ico: '🏡' },
+  { id: 'lista', nome: 'Feira', ico: '🛍️' },
+  { id: 'dinheiro', nome: 'Dinheiro', ico: '🪙' },
+  { id: 'casa', nome: 'Casa', ico: '🥫' },
+]
+const lerAba = (): Aba => {
+  const h = location.hash.replace('#', '') as Aba
+  return ABAS.some(a => a.id === h) ? h : 'inicio'
+}
+
+export default function App() {
+  const s = useStore()
+  const [aba, setAba] = useState<Aba>(lerAba)
+  const [mes, setMes] = useState(monthOf(new Date()))
+  const [lancar, setLancar] = useState(false)
+
+  useEffect(() => {
+    const h = () => setAba(lerAba())
+    window.addEventListener('hashchange', h)
+    return () => window.removeEventListener('hashchange', h)
+  }, [])
+  const ir = (a: Aba) => { if (a !== aba) { history.pushState(null, '', `#${a}`); setAba(a); window.scrollTo({ top: 0, behavior: 'instant' }) } }
+
+  if (!s.ready) return <div className="app" />
+  if (!s.session) return <div className="app"><Login /><Toasts /></div>
+  if (!s.loaded) return <div className="app"><div className="vazio" style={{ paddingTop: '40vh' }}><span className="emoji">🧺</span>Arrumando a feira…</div></div>
+  if (!s.household || !s.me) return <div className="app"><CriarCasa /><Toasts /></div>
+
+  const faltam = s.items.filter(i => !i.checked).length
+  return (
+    <div className="app">
+      {!s.online && <div className="offline">Sem internet. O que você vê pode estar desatualizado.</div>}
+      <AnimatePresence mode="wait">
+        <motion.main key={aba} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+          {aba === 'inicio' && <Inicio ir={ir} />}
+          {aba === 'lista' && <Lista />}
+          {aba === 'dinheiro' && <Dinheiro month={mes} setMonth={setMes} />}
+          {aba === 'casa' && <CasaTela />}
+        </motion.main>
+      </AnimatePresence>
+
+      {(aba === 'inicio' || aba === 'dinheiro') && (
+        <button className="fab" onClick={() => setLancar(true)}><span className="mais" aria-hidden>+</span> Lançar</button>
+      )}
+      <Lancar open={lancar} onClose={() => setLancar(false)} />
+
+      <nav className="barra" aria-label="Seções">
+        {ABAS.map(a => (
+          <button key={a.id} aria-current={aba === a.id ? 'page' : undefined} onClick={() => ir(a.id)}>
+            <span className="ico" aria-hidden {...(a.id === 'lista' ? { 'data-sacola': true } : {})}>{a.ico}</span>
+            {a.nome}
+            {a.id === 'lista' && faltam > 0 && <span className="contador">{faltam}</span>}
+          </button>
+        ))}
+      </nav>
+      <Toasts />
+    </div>
+  )
+}

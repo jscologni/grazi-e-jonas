@@ -1,0 +1,305 @@
+/* Grazi e Jonas: a feira como sistema visual.
+   Fundo pistache, tinta berinjela, cores de hortifrúti com papel de cartaz de oferta. */
+
+:root {
+  --chao: #EEF3E2;
+  --chao-fundo: #E1EACB;
+  --papel: #FBFDF4;
+  --tinta: #3B1840;
+  --tinta-suave: #6F5A73;
+  --linha: rgba(59, 24, 64, 0.13);
+  --tomate: #E2412B;
+  --tomate-claro: #FCE0D9;
+  --folha: #3E8E2F;
+  --folha-claro: #DCEFCF;
+  --abobora: #F29A1F;
+  --abobora-claro: #FDEBCF;
+  --banana: #FFD43B;
+  --limao: #B8D432;
+  --uva: #7A3E8F;
+  --uva-claro: #EEDDF2;
+  --melancia: #F2667B;
+  --sobre-cor: #FFFFFF;
+  --sombra: 0 2px 0 rgba(59, 24, 64, 0.16), 0 10px 24px -14px rgba(59, 24, 64, 0.35);
+  --raio-g: 28px;
+  --raio-m: 18px;
+  --raio-p: 12px;
+  --display: 'Bagel Fat One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --texto: 'Rethink Sans', system-ui, sans-serif;
+  --barra: 76px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
+    --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
+    --folha-claro: #1F3A1C; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+    --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
+  --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
+  --folha-claro: #1F3A1C; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+  --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--chao-fundo);
+  color: var(--tinta);
+  font-family: var(--texto);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+:focus-visible { outline: 3px solid var(--abobora); outline-offset: 2px; border-radius: 8px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* moldura do app: celular no centro mesmo no computador */
+.app {
+  max-width: 520px; margin: 0 auto; min-height: 100dvh; background: var(--chao);
+  position: relative; padding-bottom: calc(var(--barra) + env(safe-area-inset-bottom) + 24px);
+}
+@media (min-width: 560px) { .app { box-shadow: 0 0 0 1px var(--linha); } }
+.page { padding: calc(env(safe-area-inset-top) + 18px) 16px 0; }
+
+/* ---------------------------------------------------------------- tipografia */
+.titulo { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; margin: 0; letter-spacing: -0.01em; }
+.subtitulo { font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; margin: 0; }
+.leve { color: var(--tinta-suave); }
+.pequeno { font-size: 13px; }
+.topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.secao { margin: 28px 0 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+/* ---------------------------------------------------------------- cartaz de oferta (o destaque) */
+.cartaz { display: inline-flex; align-items: flex-start; font-family: var(--display); line-height: 0.82; white-space: nowrap; }
+.cartaz .rs { font-size: 0.32em; margin: 0.12em 0.12em 0 0; line-height: 1; }
+.cartaz .int { font-size: 1em; letter-spacing: -0.02em; }
+.cartaz .cents { font-size: 0.42em; line-height: 1; margin: 0.04em 0 0 0.04em; text-decoration: underline; text-decoration-thickness: 0.08em; text-underline-offset: 0.12em; }
+.cartaz.p { font-size: 22px; } .cartaz.m { font-size: 34px; } .cartaz.g { font-size: 58px; } .cartaz.xg { font-size: 78px; }
+
+/* etiqueta de preço com furo e barbante: o "sobrou no mês" */
+.etiqueta {
+  position: relative; background: var(--banana); color: #3B1840; padding: 22px 22px 20px 54px;
+  border-radius: 10px 26px 26px 10px; transform: rotate(-1.6deg); box-shadow: var(--sombra);
+  clip-path: polygon(30px 0, 100% 0, 100% 100%, 30px 100%, 0 50%);
+  margin: 10px 4px 4px;
+}
+.etiqueta::before { /* furo */
+  content: ''; position: absolute; left: 22px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  border-radius: 50%; background: var(--chao); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.etiqueta.negativa { background: var(--tomate); color: #fff; }
+.etiqueta .rotulo { font-weight: 700; font-size: 15px; }
+.etiqueta .linhas { display: flex; gap: 18px; margin-top: 12px; font-size: 14px; font-weight: 600; flex-wrap: wrap; }
+.etiqueta .linhas b { font-family: var(--display); font-weight: 400; font-size: 18px; display: block; }
+
+/* ---------------------------------------------------------------- blocos de cor */
+.bloco { border-radius: var(--raio-g); padding: 18px; position: relative; overflow: hidden; }
+.bloco.papel { background: var(--papel); box-shadow: var(--sombra); }
+.bloco.tomate { background: var(--tomate); color: #fff; }
+.bloco.folha { background: var(--folha); color: #fff; }
+.bloco.abobora { background: var(--abobora); color: #3B1840; }
+.bloco.uva { background: var(--uva); color: #fff; }
+.bloco.banana { background: var(--banana); color: #3B1840; }
+.grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bloco .emoji-fundo { position: absolute; right: -10px; bottom: -18px; font-size: 76px; opacity: 0.9; transform: rotate(-14deg); pointer-events: none; }
+.bloco .grande { font-family: var(--display); font-size: 30px; line-height: 1; }
+
+/* ---------------------------------------------------------------- linhas de lista */
+.folha-lista { background: var(--papel); border-radius: var(--raio-m); box-shadow: var(--sombra); overflow: hidden; }
+.linha {
+  display: flex; align-items: center; gap: 12px; padding: 13px 14px; min-height: 58px;
+  border-top: 1px solid var(--linha); background: var(--papel); width: 100%; text-align: left;
+}
+.linha:first-child { border-top: 0; }
+.linha .meio { flex: 1; min-width: 0; }
+.linha .nome { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linha .info { font-size: 13px; color: var(--tinta-suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linha .valor { font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.valor.entra { color: var(--folha); }
+.valor.sai { color: var(--tinta); }
+.vazio { padding: 26px 18px; text-align: center; color: var(--tinta-suave); }
+.vazio .emoji { font-size: 40px; display: block; margin-bottom: 6px; }
+
+/* seção da feira */
+.banca { margin-top: 18px; }
+.banca-titulo { display: flex; align-items: center; gap: 8px; font-weight: 750; font-size: 15px; margin: 0 4px 8px; }
+.banca-titulo .conta { margin-left: auto; font-weight: 600; color: var(--tinta-suave); font-size: 13px; }
+
+/* marcador de item: bolinha que vira adesivo */
+.marca {
+  width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid var(--tinta); flex: none;
+  display: grid; place-items: center; transition: background 0.15s, border-color 0.15s;
+}
+.marca.feito { background: var(--folha); border-color: var(--folha); color: #fff; }
+.item-riscado .nome { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--tinta-suave); }
+.dica-preco { font-size: 12.5px; font-weight: 650; color: var(--folha); }
+.dica-preco.cara { color: var(--abobora); }
+
+/* ---------------------------------------------------------------- adesivo de fruta (avatar) */
+.adesivo {
+  display: inline-grid; place-items: center; border-radius: 50% / 46%; flex: none;
+  box-shadow: 0 0 0 2.5px var(--papel), 0 0 0 4px var(--cor, var(--tomate)); background: var(--papel);
+  transform: rotate(-8deg);
+}
+.adesivo span { transform: rotate(8deg); line-height: 1; }
+
+/* ---------------------------------------------------------------- botões e chips */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px;
+  padding: 0 22px; border-radius: 999px; font-weight: 750; font-size: 16px; background: var(--tinta); color: var(--chao);
+  transition: transform 0.12s;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; }
+.btn.cheio { width: 100%; }
+.btn.tomate { background: var(--tomate); color: #fff; }
+.btn.folha { background: var(--folha); color: #fff; }
+.btn.banana { background: var(--banana); color: #3B1840; }
+.btn.fantasma { background: transparent; color: var(--tinta); box-shadow: inset 0 0 0 2px var(--linha); }
+.btn.pequeno { min-height: 38px; padding: 0 14px; font-size: 14px; }
+.link { color: var(--tinta); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; text-decoration-color: var(--abobora); }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips.rola { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 6px; scrollbar-width: none; }
+.chips.rola::-webkit-scrollbar { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px;
+  background: var(--papel); box-shadow: inset 0 0 0 1.5px var(--linha); font-weight: 650; font-size: 14.5px; white-space: nowrap; flex: none;
+}
+.chip[aria-pressed="true"] { background: var(--tinta); color: var(--chao); box-shadow: none; }
+.chip.tomate[aria-pressed="true"] { background: var(--tomate); color: #fff; }
+.chip.folha[aria-pressed="true"] { background: var(--folha); color: #fff; }
+
+.segmento { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chao-fundo); border-radius: 999px; padding: 4px; gap: 4px; }
+.segmento button { min-height: 42px; border-radius: 999px; font-weight: 750; }
+.segmento button[aria-pressed="true"] { background: var(--papel); box-shadow: var(--sombra); }
+
+/* ---------------------------------------------------------------- campos */
+.campo { display: block; margin-top: 14px; }
+.campo > span { display: block; font-weight: 700; font-size: 14px; margin: 0 0 6px 4px; }
+.entrada {
+  width: 100%; min-height: 52px; border-radius: 16px; border: 0; padding: 0 16px; background: var(--chao);
+  box-shadow: inset 0 0 0 1.5px var(--linha); font-size: 17px; outline: none;
+}
+.entrada:focus { box-shadow: inset 0 0 0 2.5px var(--tinta); }
+textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
+.lado { display: flex; gap: 10px; }
+.lado > * { flex: 1; min-width: 0; }
+
+/* barra de adicionar item: um bilhete preso no topo */
+.adicionar { position: sticky; top: 0; z-index: 5; padding: 10px 0 12px; background: linear-gradient(var(--chao) 82%, transparent); }
+.adicionar form { display: flex; gap: 8px; background: var(--papel); border-radius: 20px; padding: 6px; box-shadow: var(--sombra); }
+.adicionar input { flex: 1; border: 0; background: transparent; min-height: 46px; padding: 0 10px; font-size: 17px; outline: none; min-width: 0; }
+.adicionar button[type="submit"] { width: 46px; height: 46px; border-radius: 15px; background: var(--tomate); color: #fff; font-size: 26px; font-weight: 700; flex: none; }
+.sugestoes { display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 0; scrollbar-width: none; }
+
+/* ---------------------------------------------------------------- barra inferior */
+.barra {
+  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 520px; z-index: 20;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px); background: color-mix(in srgb, var(--chao) 88%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--linha);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+}
+.barra button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 16px; font-size: 12.5px; font-weight: 700; color: var(--tinta-suave); position: relative; }
+.barra button .ico { font-size: 24px; line-height: 1.1; filter: grayscale(0.6); transition: filter 0.2s; }
+.barra button[aria-current="page"] { color: var(--tinta); background: var(--papel); box-shadow: var(--sombra); }
+.barra button[aria-current="page"] .ico { filter: none; }
+.barra .contador {
+  position: absolute; top: 0; right: calc(50% - 26px); min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  background: var(--tomate); color: #fff; font-size: 11.5px; font-weight: 800; display: grid; place-items: center;
+}
+
+/* botão flutuante de lançar */
+.fab {
+  position: fixed; z-index: 19; right: max(16px, calc(50% - 260px + 16px)); bottom: calc(var(--barra) + env(safe-area-inset-bottom) + 14px);
+  height: 58px; padding: 0 22px 0 18px; border-radius: 22px 22px 22px 8px; background: var(--tomate); color: #fff;
+  font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 24px -8px rgba(226, 65, 43, 0.7);
+}
+.fab .mais { font-size: 28px; line-height: 1; margin-top: -2px; }
+
+/* ---------------------------------------------------------------- folha que sobe (sheet) */
+.veu { position: fixed; inset: 0; background: rgba(29, 15, 33, 0.45); z-index: 40; }
+.sheet {
+  position: fixed; z-index: 41; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 520px; max-height: 92dvh;
+  background: var(--papel); border-radius: 30px 30px 0 0; padding: 10px 18px calc(env(safe-area-inset-bottom) + 20px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sheet .alca-area { padding: 6px 0 12px; margin: -10px -18px 0; touch-action: none; cursor: grab; }
+.sheet .alca { width: 44px; height: 5px; border-radius: 3px; background: var(--linha); margin: 0 auto; }
+.sheet .sheet-topo { touch-action: none; }
+.sheet-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.fechar { width: 40px; height: 40px; border-radius: 50%; background: var(--chao); font-size: 20px; display: grid; place-items: center; flex: none; }
+.acoes { display: flex; gap: 10px; margin-top: 22px; }
+.acoes > * { flex: 1; }
+
+/* teclado de valor */
+.visor { text-align: center; padding: 14px 0 6px; min-height: 96px; display: flex; align-items: center; justify-content: center; }
+.visor.sai { color: var(--tinta); } .visor.entra { color: var(--folha); }
+.teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.teclado button { height: 54px; border-radius: 16px; background: var(--chao); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.teclado button:active { background: var(--chao-fundo); }
+
+/* ---------------------------------------------------------------- avisos */
+.toasts { position: fixed; z-index: 60; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 10px); display: grid; justify-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }
+.toast { background: var(--tinta); color: var(--chao); padding: 12px 18px; border-radius: 16px; font-weight: 650; box-shadow: var(--sombra); max-width: 440px; }
+.toast.erro { background: var(--tomate); color: #fff; }
+.offline { background: var(--abobora); color: #3B1840; text-align: center; font-weight: 700; font-size: 13.5px; padding: 6px; }
+
+/* ---------------------------------------------------------------- dinheiro */
+.mes { display: flex; align-items: center; gap: 6px; }
+.mes button.seta { width: 40px; height: 40px; border-radius: 50%; background: var(--papel); box-shadow: var(--sombra); font-size: 18px; font-weight: 800; }
+.mes .nome-mes { font-family: var(--display); font-size: 22px; min-width: 120px; text-align: center; }
+.abas { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 18px -16px 0; padding: 0 16px 4px; }
+.abas button { flex: none; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 750; background: transparent; box-shadow: inset 0 0 0 1.5px var(--linha); }
+.abas button[aria-selected="true"] { background: var(--tinta); color: var(--chao); box-shadow: none; }
+.status { font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.status.paga { background: var(--folha-claro); color: var(--folha); }
+.status.vencida, .status.hoje { background: var(--tomate-claro); color: var(--tomate); }
+.status.logo { background: var(--abobora-claro); color: #9a5a00; }
+.status.aberta { background: var(--chao); color: var(--tinta-suave); }
+:root[data-theme="dark"] .status.logo { color: var(--abobora); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .status.logo { color: var(--abobora); } }
+
+/* cartão de crédito como bloco */
+.cartao { border-radius: 22px; padding: 18px; color: #fff; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+.cartao::after { content: ''; position: absolute; width: 180px; height: 180px; border-radius: 50%; right: -60px; top: -70px; background: rgba(255, 255, 255, 0.12); }
+.cor-berinjela { background: #4B1D52; } .cor-tomate { background: #C7361F; } .cor-folha { background: #2F6E23; }
+.cor-abobora { background: #D77F0B; } .cor-uva { background: #6A2F80; } .cor-tinta { background: #2B2B2B; }
+.barrinha { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); overflow: hidden; }
+.barrinha i { display: block; height: 100%; background: #fff; border-radius: 4px; }
+
+/* caixinha (pote) */
+.pote { width: 74px; height: 88px; flex: none; }
+
+/* despensa: três estados */
+.estado { display: flex; background: var(--chao); border-radius: 999px; padding: 3px; gap: 2px; flex: none; }
+.estado button { width: 34px; height: 34px; border-radius: 50%; font-size: 13px; font-weight: 800; color: var(--tinta-suave); }
+.estado button[aria-pressed="true"].cheio { background: var(--folha); color: #fff; }
+.estado button[aria-pressed="true"].acabando { background: var(--abobora); color: #3B1840; }
+.estado button[aria-pressed="true"].acabou { background: var(--tomate); color: #fff; }
+
+/* sacola na barra (alvo do voo do item) */
+.voando { position: fixed; z-index: 70; pointer-events: none; font-weight: 750; background: var(--banana); color: #3B1840; padding: 8px 14px; border-radius: 999px; box-shadow: var(--sombra); white-space: nowrap; }
+
+/* tela de entrada */
+.entrada-tela { min-height: 100dvh; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 40px) 22px 32px; }
+.marca-casa { font-family: var(--display); font-size: 64px; line-height: 0.9; margin: 22px 0 14px; letter-spacing: -0.02em; }
+.marca-casa .e { color: var(--tomate); display: inline-block; transform: rotate(-8deg); }
+.feira-faixa { display: flex; justify-content: space-between; max-width: 380px; font-size: clamp(24px, 8vw, 34px); margin-top: 8px; }
+.feira-faixa span { display: inline-block; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
