@@ -5,7 +5,7 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(d.title || 'Grazi e Jonas', {
     body: d.body || '',
     icon: 'icon-192.png',
-    badge: 'icon-192.png',
+    badge: 'badge-96.png', // silhueta branca: o Android pinta o ícone pequeno de uma cor só
     tag: d.tag || 'avisos',
     data: { url: d.url || './#dinheiro' },
   }))
