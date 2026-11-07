@@ -5,6 +5,11 @@ import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo } from '../ui'
 
+// No iPhone, o app instalado não recebe o login feito pelo link do e-mail (abre no Safari, que é separado)
+export const iphoneInstalado = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+  (matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true)
+const BASE = () => location.origin + import.meta.env.BASE_URL
+
 const FAIXA = ['🍅', '🥑', '🍌', '🥕', '🍆', '🧀', '🍞', '🍋']
 
 function Faixa() {
@@ -23,8 +28,8 @@ function Faixa() {
 export function Login() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [modo, setModo] = useState<'link' | 'senha' | 'criar'>('link')
-  const [enviado, setEnviado] = useState(false)
+  const [modo, setModo] = useState<'link' | 'senha' | 'criar' | 'esqueci'>(iphoneInstalado() ? 'senha' : 'link')
+  const [enviado, setEnviado] = useState<false | 'link' | 'confirmar' | 'senha'>(false)
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -34,23 +39,27 @@ export function Login() {
     try {
       if (modo === 'link') {
         const { error } = await supabase.auth.signInWithOtp({
-          email: email.trim(), options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL },
+          email: email.trim(), options: { emailRedirectTo: BASE() },
         })
         if (error) throw error
-        setEnviado(true)
+        setEnviado('link')
+      } else if (modo === 'esqueci') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: BASE() })
+        if (error) throw error
+        setEnviado('senha')
       } else if (modo === 'senha') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha })
         if (error) throw error.message.includes('Invalid login') ? new Error('E-mail ou senha não conferem.') : error
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(), password: senha, options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL },
+          email: email.trim(), password: senha, options: { emailRedirectTo: BASE() },
         })
         if (error) throw error
-        if (!data.session) setEnviado(true)
+        if (!data.session) setEnviado('confirmar')
       }
     } catch (e) {
       const m = say(e)
-      setErro(/rate limit/i.test(m) ? 'Muitos e-mails em pouco tempo. Espere alguns minutos e tente de novo.' : m)
+      setErro(/rate limit/i.test(m) ? 'Muitos e-mails em pouco tempo. Espere uma hora e tente de novo, ou entre com a senha.' : m)
     } finally { setBusy(false) }
   }
 
@@ -66,11 +75,15 @@ export function Login() {
         {enviado ? (
           <div className="bloco banana">
             <p className="subtitulo" style={{ marginBottom: 6 }}>Confira seu e-mail</p>
-            <p style={{ margin: 0 }}>
-              Mandamos um link para <b>{email}</b>. Abra no celular e toque nele para entrar.
-              Se não aparecer, olhe o spam.
-            </p>
-            <button className="link" style={{ marginTop: 12 }} onClick={() => setEnviado(false)}>Usar outro e-mail</button>
+            {enviado === 'senha' ? (
+              <p style={{ margin: 0 }}>Mandamos um link para <b>{email}</b>. Toque nele: vai abrir no navegador uma tela para <b>criar a senha nova</b>.
+                Depois, volte para o app instalado e entre com o e-mail e essa senha.</p>
+            ) : enviado === 'confirmar' ? (
+              <p style={{ margin: 0 }}>Mandamos um link para <b>{email}</b> para confirmar a conta. Toque nele e depois volte aqui para entrar com a senha.</p>
+            ) : (
+              <p style={{ margin: 0 }}>Mandamos um link para <b>{email}</b>. Abra neste celular e toque nele para entrar. Se não aparecer, olhe o spam.</p>
+            )}
+            <button className="link" style={{ marginTop: 12 }} onClick={() => { setEnviado(false); setModo('senha') }}>Voltar para entrar</button>
           </div>
         ) : (
           <form onSubmit={enviar}>
@@ -79,7 +92,10 @@ export function Login() {
               <input className="entrada" type="email" required autoComplete="email" inputMode="email"
                 value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@email.com" />
             </label>
-            {modo !== 'link' && (
+            {iphoneInstalado() && modo === 'senha' && (
+              <p className="aviso">No iPhone, o app instalado entra com <b>e-mail e senha</b>. O link do e-mail abre no Safari, que fica com um login separado.</p>
+            )}
+            {modo !== 'link' && modo !== 'esqueci' && (
               <label className="campo">
                 <span>{modo === 'criar' ? 'Crie uma senha (mínimo 6)' : 'Senha'}</span>
                 <input className="entrada" type="password" required minLength={6}
@@ -89,14 +105,16 @@ export function Login() {
             )}
             {erro && <p role="alert" style={{ color: 'var(--tomate)', fontWeight: 700 }}>{erro}</p>}
             <button className="btn tomate cheio" style={{ marginTop: 18 }} disabled={busy}>
-              {busy ? 'Enviando…' : modo === 'link' ? 'Receber link de entrada' : modo === 'senha' ? 'Entrar' : 'Criar conta'}
+              {busy ? 'Enviando…' : modo === 'link' ? 'Receber link de entrada' : modo === 'senha' ? 'Entrar' : modo === 'esqueci' ? 'Mandar link para criar senha' : 'Criar conta'}
             </button>
             <p className="pequeno leve" style={{ textAlign: 'center', marginTop: 16 }}>
               {modo === 'link'
-                ? <>No iPhone com o app instalado, prefira <button type="button" className="link" onClick={() => setModo('senha')}>entrar com senha</button>.</>
+                ? <>Prefere senha? <button type="button" className="link" onClick={() => setModo('senha')}>Entrar com senha</button></>
                 : modo === 'senha'
-                  ? <>Primeira vez? <button type="button" className="link" onClick={() => setModo('criar')}>Criar conta com senha</button> · <button type="button" className="link" onClick={() => setModo('link')}>usar link</button></>
-                  : <>Já tem conta? <button type="button" className="link" onClick={() => setModo('senha')}>Entrar</button></>}
+                  ? <><button type="button" className="link" onClick={() => setModo('esqueci')}>Esqueci ou não tenho senha</button> · <button type="button" className="link" onClick={() => setModo('criar')}>Criar conta</button>{!iphoneInstalado() && <> · <button type="button" className="link" onClick={() => setModo('link')}>usar link</button></>}</>
+                  : modo === 'esqueci'
+                    ? <>Vamos mandar um link para você criar uma senha nova. <button type="button" className="link" onClick={() => setModo('senha')}>Voltar</button></>
+                    : <>Já tem conta? <button type="button" className="link" onClick={() => setModo('senha')}>Entrar</button></>}
             </p>
           </form>
         )}
@@ -171,5 +189,29 @@ export function Casa() {
         {modo === 'criar' && <p className="pequeno leve" style={{ textAlign: 'center' }}>Depois você manda o código para a outra pessoa entrar.</p>}
       </form>
     </div>
+  )
+}
+
+/** Criar ou trocar a senha de quem já está logado (link de recuperação ou Ajustes) */
+export function NovaSenha({ titulo, onPronto }: { titulo: string; onPronto: () => void }) {
+  const { toast } = useStore()
+  const [senha, setSenha] = useState('')
+  const [busy, setBusy] = useState(false)
+  const salvar = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: senha })
+    setBusy(false)
+    if (error) return toast(/should be different/i.test(error.message) ? 'Escolha uma senha diferente da anterior.' : say(error), 'erro')
+    toast('Senha salva. No iPhone, entre no app instalado com o e-mail e essa senha.')
+    onPronto()
+  }
+  return (
+    <form onSubmit={salvar}>
+      <p className="subtitulo" style={{ margin: '0 0 6px' }}>{titulo}</p>
+      <label className="campo"><span>Senha nova (mínimo 6)</span>
+        <input className="entrada" type="password" required minLength={6} autoComplete="new-password" value={senha} onChange={e => setSenha(e.target.value)} /></label>
+      <button className="btn folha cheio" style={{ marginTop: 14 }} disabled={busy || senha.length < 6}>{busy ? 'Salvando…' : 'Salvar senha'}</button>
+    </form>
   )
 }

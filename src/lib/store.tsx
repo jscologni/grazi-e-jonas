@@ -57,6 +57,8 @@ export interface Ctx extends Data {
   loaded: boolean         // dados da casa carregados
   online: boolean
   pendentes: number   // mudanças da lista esperando internet
+  recuperando: boolean // abriu pelo link de criar senha nova
+  fimRecuperacao: () => void
   reload: () => Promise<void>
   patch: <K extends Table>(key: K, fn: (rows: Data[K]) => Data[K]) => void
   memberName: (id: string | null | undefined) => string
@@ -90,6 +92,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Data>(EMPTY)
   const [online, setOnline] = useState(navigator.onLine)
   const [pendentes, setPendentes] = useState(tamanhoFila())
+  const [recuperando, setRecuperando] = useState(false)
   const [toasts, setToasts] = useState<Ctx['toasts']>([])
   const timers = useRef<Record<string, number>>({})
 
@@ -102,7 +105,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, s) => { setSession(s); if (evento === 'PASSWORD_RECOVERY') setRecuperando(true) })
     const on = () => setOnline(true), off = () => setOnline(false)
     window.addEventListener('online', on); window.addEventListener('offline', off)
     return () => { sub.subscription.unsubscribe(); window.removeEventListener('online', on); window.removeEventListener('offline', off) }
@@ -188,10 +191,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const me = data.members.find(m => m.user_id === session?.user.id) ?? null
     const member = (id: string | null | undefined) => data.members.find(m => m.user_id === id)
     return {
-      ...data, session, me, ready, loaded, online, pendentes, reload, patch, toast, toasts,
+      ...data, session, me, ready, loaded, online, pendentes, recuperando, fimRecuperacao: () => setRecuperando(false), reload, patch, toast, toasts,
       member, memberName: id => member(id)?.name ?? 'Alguém',
     }
-  }, [data, session, ready, loaded, online, pendentes, reload, patch, toast, toasts])
+  }, [data, session, ready, loaded, online, pendentes, recuperando, reload, patch, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }

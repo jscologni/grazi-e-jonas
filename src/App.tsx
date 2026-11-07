@@ -4,7 +4,7 @@ import { monthOf } from './lib/format'
 import { useStore } from './lib/store'
 import { Casa as CasaTela } from './screens/Casa'
 import { Dinheiro } from './screens/Dinheiro'
-import { Casa as CriarCasa, Login } from './screens/Entrar'
+import { Casa as CriarCasa, Login, NovaSenha } from './screens/Entrar'
 import { Inicio } from './screens/Inicio'
 import { Lancar } from './screens/Lancar'
 import { Lista } from './screens/Lista'
@@ -41,6 +41,11 @@ export default function App() {
 
   if (!s.ready) return <div className="app" />
   if (!s.session) return <div className="app"><Login /><Toasts /></div>
+  if (s.recuperando) return (
+    <div className="app"><div className="entrada-tela">
+      <NovaSenha titulo={`Crie a senha nova de ${s.session.user.email}`} onPronto={s.fimRecuperacao} />
+    </div><Toasts /></div>
+  )
   if (!s.loaded) return <div className="app"><div className="vazio" style={{ paddingTop: '40vh' }}><span className="emoji">🧺</span>Arrumando a feira…</div></div>
   if (!s.household || !s.me) return <div className="app"><CriarCasa /><Toasts /></div>
 

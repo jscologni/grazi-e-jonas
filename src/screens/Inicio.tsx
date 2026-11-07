@@ -5,7 +5,7 @@ import { ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/for
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Sheet } from '../ui'
-import { Escolher } from './Entrar'
+import { Escolher, NovaSenha } from './Entrar'
 import { Etiqueta } from './Dinheiro'
 
 type Ir = (aba: 'lista' | 'dinheiro' | 'casa') => void
@@ -131,6 +131,7 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [nome, setNome] = useState('')
   const [fruta, setFruta] = useState('tomate')
   const [aberto, setAberto] = useState(false)
+  const [trocarSenha, setTrocarSenha] = useState(false)
   const [novaCat, setNovaCat] = useState({ name: '', emoji: '🏷️', kind: 'out' as 'in' | 'out' })
   if (open && !aberto) { setAberto(true); setNome(s.me?.name ?? ''); setFruta(s.me?.fruit ?? 'tomate') }
   if (!open && aberto) setAberto(false)
@@ -202,6 +203,14 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="segmento"><button aria-pressed={novaCat.kind === 'out'} onClick={() => setNovaCat({ ...novaCat, kind: 'out' })}>Gasto</button><button aria-pressed={novaCat.kind === 'in'} onClick={() => setNovaCat({ ...novaCat, kind: 'in' })}>Entrada</button></div>
         <button className="btn" style={{ flex: 'none' }} onClick={addCat}>Adicionar</button>
       </div>
+
+      <h3 style={{ margin: '28px 0 6px' }}>Senha</h3>
+      {trocarSenha
+        ? <NovaSenha titulo="Criar ou trocar senha" onPronto={() => setTrocarSenha(false)} />
+        : <>
+            <p className="pequeno leve" style={{ margin: '0 0 8px' }}>Com senha dá para entrar no app instalado no iPhone, onde o link do e-mail não funciona.</p>
+            <button className="btn fantasma cheio" onClick={() => setTrocarSenha(true)}>Criar ou trocar senha</button>
+          </>}
 
       <button className="btn fantasma cheio" style={{ marginTop: 30 }} onClick={sair}>Sair da conta neste aparelho</button>
       <p className="pequeno leve" style={{ textAlign: 'center' }}>{s.session?.user.email}</p>
