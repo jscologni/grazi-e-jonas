@@ -32,6 +32,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: `${BASE}index.html`,
+        importScripts: ['push-sw.js'], // avisos de contas com o app fechado
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {

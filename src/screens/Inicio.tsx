@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
 import { accountBalance, billsFor, choreStatus, faturasAPagar, summary } from '../lib/finance'
 import { ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
@@ -167,6 +168,9 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="campo"><span>Adesivo</span><Escolher value={fruta} onChange={setFruta} /></div>
       <button className="btn cheio" style={{ marginTop: 14 }} onClick={salvarPerfil}>Salvar perfil</button>
 
+      <h3 style={{ margin: '28px 0 6px' }}>Avisos no celular</h3>
+      <AvisosCelular aberto={open} />
+
       <h3 style={{ margin: '28px 0 6px' }}>A casa</h3>
       <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
         {s.members.map(m => (
@@ -202,5 +206,34 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
       <button className="btn fantasma cheio" style={{ marginTop: 30 }} onClick={sair}>Sair da conta neste aparelho</button>
       <p className="pequeno leve" style={{ textAlign: 'center' }}>{s.session?.user.email}</p>
     </Sheet>
+  )
+}
+
+function AvisosCelular({ aberto }: { aberto: boolean }) {
+  const s = useStore()
+  const [estado, setEstado] = useState<Estado | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (aberto) estadoAvisos().then(setEstado).catch(() => setEstado('sem-suporte')) }, [aberto])
+  const fazer = async (acao: () => Promise<unknown>, ok: string) => {
+    setBusy(true)
+    try { await acao(); s.toast(ok); setEstado(await estadoAvisos()) } catch (e) { s.toast(say(e), 'erro') } finally { setBusy(false) }
+  }
+  if (!estado) return null
+  return (
+    <div className="bloco papel" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
+      <p style={{ margin: '0 0 12px' }}>
+        Todo dia às 8h, se alguma conta fixa ou fatura vencer em até 3 dias, chega um aviso neste celular.
+      </p>
+      {estado === 'instalar-iphone' && <p className="aviso" style={{ marginTop: 0 }}>No iPhone, os avisos só funcionam com o app na tela de início: no Safari, toque em Compartilhar › Adicionar à Tela de Início e abra o app por lá.</p>}
+      {estado === 'sem-suporte' && <p className="aviso" style={{ marginTop: 0 }}>Este navegador não recebe avisos. Use o app instalado no celular.</p>}
+      {estado === 'bloqueado' && <p className="aviso" style={{ marginTop: 0 }}>As notificações do app estão bloqueadas. Libere nas configurações do celular (Notificações › Grazi e Jonas) e volte aqui.</p>}
+      {estado === 'desligado' && <button className="btn folha cheio" disabled={busy} onClick={() => fazer(ligarAvisos, 'Avisos ligados neste celular')}>🔔 Ligar avisos</button>}
+      {estado === 'ligado' && (
+        <div className="acoes" style={{ marginTop: 0 }}>
+          <button className="btn fantasma" disabled={busy} onClick={() => fazer(desligarAvisos, 'Avisos desligados neste celular')}>Desligar</button>
+          <button className="btn" disabled={busy} onClick={() => fazer(async () => { if (!(await avisoTeste())) throw new Error('O teste não chegou a este celular. Desligue e ligue os avisos de novo.') }, 'Aviso de teste enviado')}>Mandar teste</button>
+        </div>
+      )}
+    </div>
   )
 }
