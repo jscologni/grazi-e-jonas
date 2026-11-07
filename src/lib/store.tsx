@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { enviarFila, tamanhoFila } from './fila'
 import { supabase } from './supabase'
 import type { Account, Bill, Card, CardPayment, ProductPick, Category, Chore, ChoreLog, Goal, GoalMove, Household, Item, Market, Member, Pantry, Price, Trip, Tx } from './types'
 
@@ -55,6 +56,7 @@ export interface Ctx extends Data {
   ready: boolean          // sessão verificada
   loaded: boolean         // dados da casa carregados
   online: boolean
+  pendentes: number   // mudanças da lista esperando internet
   reload: () => Promise<void>
   patch: <K extends Table>(key: K, fn: (rows: Data[K]) => Data[K]) => void
   memberName: (id: string | null | undefined) => string
@@ -87,6 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false)
   const [data, setData] = useState<Data>(EMPTY)
   const [online, setOnline] = useState(navigator.onLine)
+  const [pendentes, setPendentes] = useState(tamanhoFila())
   const [toasts, setToasts] = useState<Ctx['toasts']>([])
   const timers = useRef<Record<string, number>>({})
 
@@ -115,6 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const reload = useCallback(async () => {
+    if (!navigator.onLine) { setLoaded(true); return }
     const { data: h, error } = await supabase.from('households').select('*').maybeSingle()
     if (error) throw error
     if (!h) { setData(EMPTY); setLoaded(true); return }
@@ -123,11 +127,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLoaded(true)
   }, [fetchTable])
 
-  // carrega quando a sessão muda
+  // carrega quando a sessão muda (primeiro a cópia guardada no celular, depois o banco)
   useEffect(() => {
     if (!session) { setData(EMPTY); setLoaded(false); return }
+    try {
+      const c = JSON.parse(localStorage.getItem(`copia:${session.user.id}`) ?? 'null')
+      if (c?.household) { setData({ ...EMPTY, ...c }); setLoaded(true) }
+    } catch { /* sem cópia */ }
     reload().catch(e => { toast(say(e), 'erro'); setLoaded(true) })
   }, [session?.user.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // guarda uma cópia dos dados no celular (para abrir sem internet)
+  useEffect(() => {
+    if (!session || !data.household) return
+    const t = window.setTimeout(() => {
+      try { localStorage.setItem(`copia:${session.user.id}`, JSON.stringify(data)) } catch { /* sem espaço */ }
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [data, session])
+
+  // fila da lista: conta o que espera e envia quando a internet volta
+  useEffect(() => {
+    const mudou = (e: Event) => setPendentes((e as CustomEvent<number>).detail)
+    const voltou = async () => {
+      setOnline(true)
+      const n = await enviarFila()
+      if (n) toast(n === 1 ? '1 mudança da lista enviada' : `${n} mudanças da lista enviadas`)
+      reload().catch(() => {})
+    }
+    window.addEventListener('fila-mudou', mudou)
+    window.addEventListener('online', voltou)
+    if (navigator.onLine && tamanhoFila()) void voltou()
+    return () => { window.removeEventListener('fila-mudou', mudou); window.removeEventListener('online', voltou) }
+  }, [reload, toast])
 
   // tempo real: quando o outro mexe, recarrega só a tabela que mudou
   useEffect(() => {
@@ -139,11 +171,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (payload.table === 'households') { reload().catch(() => {}); return }
         if (!key) return
         window.clearTimeout(timers.current[key])
-        timers.current[key] = window.setTimeout(() => fetchTable(key).catch(() => {}), 250)
+        timers.current[key] = window.setTimeout(() => { void enviarFila().finally(() => fetchTable(key).catch(() => {})) }, 250)
       })
       .subscribe()
     // ao voltar para o app, garante que está tudo em dia
-    const vis = () => { if (document.visibilityState === 'visible') reload().catch(() => {}) }
+    const vis = () => { if (document.visibilityState === 'visible') void enviarFila().finally(() => reload().catch(() => {})) }
     document.addEventListener('visibilitychange', vis)
     return () => { supabase.removeChannel(ch); document.removeEventListener('visibilitychange', vis) }
   }, [session?.user.id, data.household?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,10 +188,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const me = data.members.find(m => m.user_id === session?.user.id) ?? null
     const member = (id: string | null | undefined) => data.members.find(m => m.user_id === id)
     return {
-      ...data, session, me, ready, loaded, online, reload, patch, toast, toasts,
+      ...data, session, me, ready, loaded, online, pendentes, reload, patch, toast, toasts,
       member, memberName: id => member(id)?.name ?? 'Alguém',
     }
-  }, [data, session, ready, loaded, online, reload, patch, toast, toasts])
+  }, [data, session, ready, loaded, online, pendentes, reload, patch, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }

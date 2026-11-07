@@ -21,6 +21,16 @@ export default function App() {
   const [aba, setAba] = useState<Aba>(lerAba)
   const [mes, setMes] = useState(monthOf(new Date()))
   const [lancar, setLancar] = useState(false)
+  const [fabVisivel, setFabVisivel] = useState(true)
+  useEffect(() => {
+    let ultimo = window.scrollY
+    const rolar = () => {
+      const y = window.scrollY
+      if (Math.abs(y - ultimo) > 8) { setFabVisivel(y < ultimo || y < 80); ultimo = y }
+    }
+    window.addEventListener('scroll', rolar, { passive: true })
+    return () => window.removeEventListener('scroll', rolar)
+  }, [])
 
   useEffect(() => {
     const h = () => setAba(lerAba())
@@ -37,7 +47,12 @@ export default function App() {
   const faltam = s.items.filter(i => !i.checked).length
   return (
     <div className="app">
-      {!s.online && <div className="offline">Sem internet. O que você vê pode estar desatualizado.</div>}
+      {(!s.online || s.pendentes > 0) && (
+        <div className="offline" role="status">
+          {!s.online ? 'Sem internet. A lista continua funcionando' : 'Enviando mudanças da lista'}
+          {s.pendentes > 0 ? ` · ${s.pendentes} ${s.pendentes === 1 ? 'mudança esperando' : 'mudanças esperando'}` : '.'}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         <motion.main key={aba} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
           {aba === 'inicio' && <Inicio ir={ir} />}
@@ -48,7 +63,7 @@ export default function App() {
       </AnimatePresence>
 
       {(aba === 'inicio' || aba === 'dinheiro') && (
-        <button className="fab" onClick={() => setLancar(true)}><span className="mais" aria-hidden>+</span> Lançar</button>
+        <button className={`fab ${fabVisivel ? '' : 'escondido'}`} onClick={() => setLancar(true)}><span className="mais" aria-hidden>+</span> Lançar</button>
       )}
       <Lancar open={lancar} onClose={() => setLancar(false)} />
 

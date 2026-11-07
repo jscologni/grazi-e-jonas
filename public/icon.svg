@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#E2412B"/>
+  <rect width="512" height="512" rx="112" fill="#C9381F"/>
   <g transform="translate(256 256) scale(.86) translate(-256 -256)">
     <text x="256" y="318" text-anchor="middle" font-family="'Bagel Fat One', 'Arial Rounded MT Bold', sans-serif" font-size="200" fill="#FFF6EC" letter-spacing="-6">g&amp;j</text>
     <path d="M352 140c10-34 40-54 76-52-8 34-38 56-76 52z" fill="#7CC46A"/>

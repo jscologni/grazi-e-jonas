@@ -8,9 +8,9 @@
   --tinta: #3B1840;
   --tinta-suave: #6F5A73;
   --linha: rgba(59, 24, 64, 0.13);
-  --tomate: #E2412B;
+  --tomate: #C9381F;
   --tomate-claro: #FCE0D9;
-  --folha: #3E8E2F;
+  --folha: #357D27;
   --folha-claro: #DCEFCF;
   --abobora: #F29A1F;
   --abobora-claro: #FDEBCF;
@@ -20,6 +20,7 @@
   --uva-claro: #EEDDF2;
   --melancia: #F2667B;
   --sobre-folha: #FFFFFF;
+  --sobre-tomate: #FFFFFF;
   --sombra: 0 2px 0 rgba(59, 24, 64, 0.16), 0 10px 24px -14px rgba(59, 24, 64, 0.35);
   --raio-g: 28px;
   --raio-m: 18px;
@@ -33,7 +34,7 @@
   :root:not([data-theme="light"]) {
     --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
     --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-    --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+    --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
     --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
     color-scheme: dark;
   }
@@ -41,7 +42,7 @@
 :root[data-theme="dark"] {
   --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
   --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-  --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+  --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
   --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
 }
@@ -103,7 +104,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   content: ''; position: absolute; left: 22px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
   border-radius: 50%; background: var(--chao); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
 }
-.etiqueta.negativa { background: var(--tomate); color: #fff; }
+.etiqueta.negativa { background: var(--tomate); color: var(--sobre-tomate); }
 .etiqueta .rotulo { font-weight: 700; font-size: 15px; }
 .etiqueta .linhas { display: flex; gap: 18px; margin-top: 12px; font-size: 14px; font-weight: 600; flex-wrap: wrap; }
 .etiqueta .linhas b { font-family: var(--display); font-weight: 400; font-size: 18px; display: block; }
@@ -111,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 /* ---------------------------------------------------------------- blocos de cor */
 .bloco { border-radius: var(--raio-g); padding: 18px; position: relative; overflow: hidden; }
 .bloco.papel { background: var(--papel); box-shadow: var(--sombra); }
-.bloco.tomate { background: var(--tomate); color: #fff; }
+.bloco.tomate { background: var(--tomate); color: var(--sobre-tomate); }
 .bloco.folha { background: var(--folha); color: var(--sobre-folha); }
 .bloco.abobora { background: var(--abobora); color: #3B1840; }
 .bloco.uva { background: var(--uva); color: #fff; }
@@ -188,7 +189,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; }
 .btn.cheio { width: 100%; }
-.btn.tomate { background: var(--tomate); color: #fff; }
+.btn.tomate { background: var(--tomate); color: var(--sobre-tomate); }
 .btn.folha { background: var(--folha); color: var(--sobre-folha); }
 .btn.banana { background: var(--banana); color: #3B1840; }
 .btn.fantasma { background: transparent; color: var(--tinta); box-shadow: inset 0 0 0 2px var(--linha); }
@@ -203,7 +204,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   background: var(--papel); box-shadow: inset 0 0 0 1.5px var(--linha); font-weight: 650; font-size: 14.5px; white-space: nowrap; flex: none;
 }
 .chip[aria-pressed="true"] { background: var(--tinta); color: var(--chao); box-shadow: none; }
-.chip.tomate[aria-pressed="true"] { background: var(--tomate); color: #fff; }
+.chip.tomate[aria-pressed="true"] { background: var(--tomate); color: var(--sobre-tomate); }
 .chip.folha[aria-pressed="true"] { background: var(--folha); color: var(--sobre-folha); }
 
 .segmento { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chao-fundo); border-radius: 999px; padding: 4px; gap: 4px; }
@@ -260,16 +261,18 @@ textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
 .barra button:focus-visible { outline-offset: -6px; border-radius: 18px; }
 .barra .contador {
   position: absolute; top: 9px; right: calc(50% - 24px); min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
-  background: var(--tomate); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center;
+  background: var(--tomate); color: var(--sobre-tomate); font-size: 11px; font-weight: 800; display: grid; place-items: center;
   box-shadow: 0 0 0 2px var(--vidro);
 }
 
 /* botão flutuante de lançar */
 .fab {
   position: fixed; z-index: 19; right: max(16px, calc(50% - 260px + 16px)); bottom: calc(var(--barra) + env(safe-area-inset-bottom) + 14px);
-  height: 58px; padding: 0 22px 0 18px; border-radius: 22px 22px 22px 8px; background: var(--tomate); color: #fff;
-  font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 24px -8px rgba(226, 65, 43, 0.7);
+  height: 58px; padding: 0 22px 0 18px; border-radius: 22px 22px 22px 8px; background: var(--tomate); color: var(--sobre-tomate);
+  transition: transform 0.3s cubic-bezier(.3,.7,.4,1.2), opacity 0.2s;
+  font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 24px -8px rgba(201, 56, 31, 0.7);
 }
+.fab.escondido { transform: translateY(140px); opacity: 0; pointer-events: none; }
 .fab .mais { font-size: 28px; line-height: 1; margin-top: -2px; }
 
 /* ---------------------------------------------------------------- folha que sobe (sheet) */
@@ -297,7 +300,7 @@ textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
 /* ---------------------------------------------------------------- avisos */
 .toasts { position: fixed; z-index: 60; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 10px); display: grid; justify-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }
 .toast { background: var(--tinta); color: var(--chao); padding: 12px 18px; border-radius: 16px; font-weight: 650; box-shadow: var(--sombra); max-width: 440px; }
-.toast.erro { background: var(--tomate); color: #fff; }
+.toast.erro { background: var(--tomate); color: var(--sobre-tomate); }
 .offline { background: var(--abobora); color: #3B1840; text-align: center; font-weight: 700; font-size: 13.5px; padding: 6px; }
 
 /* ---------------------------------------------------------------- dinheiro */
@@ -331,7 +334,7 @@ textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
 .estado button { width: 34px; height: 34px; border-radius: 50%; font-size: 13px; font-weight: 800; color: var(--tinta-suave); }
 .estado button[aria-pressed="true"].cheio { background: var(--folha); color: var(--sobre-folha); }
 .estado button[aria-pressed="true"].acabando { background: var(--abobora); color: #3B1840; }
-.estado button[aria-pressed="true"].acabou { background: var(--tomate); color: #fff; }
+.estado button[aria-pressed="true"].acabou { background: var(--tomate); color: var(--sobre-tomate); }
 
 /* sacola na barra (alvo do voo do item) */
 .voando { position: fixed; z-index: 70; pointer-events: none; font-weight: 750; background: var(--banana); color: #3B1840; padding: 8px 14px; border-radius: 999px; box-shadow: var(--sombra); white-space: nowrap; }
@@ -348,3 +351,10 @@ textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* área de toque mínima de 44px (WCAG 2.5.5) sem mudar o desenho */
+.marca, .lupa, .link, .fechar, .chip, .adesivo { position: relative; }
+.marca::after { content: ''; position: absolute; inset: -8px; }
+.lupa::after { content: ''; position: absolute; inset: -5px; }
+.link::after { content: ''; position: absolute; inset: -12px -6px; }
+.chip::after { content: ''; position: absolute; inset: -3px 0; }

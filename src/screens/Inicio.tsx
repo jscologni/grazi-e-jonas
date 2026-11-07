@@ -44,7 +44,7 @@ export function Inicio({ ir }: { ir: Ir }) {
           <p className="leve" style={{ margin: 0, fontWeight: 600 }}>{saudacao()},</p>
           <h1 className="titulo">{firstName(s.me?.name ?? '')}</h1>
         </div>
-        <button onClick={() => setAjustes(true)} aria-label="Ajustes da casa" style={{ display: 'flex', gap: 2 }}>
+        <button onClick={() => setAjustes(true)} aria-label="Ajustes da casa" style={{ display: 'flex', gap: 2, minHeight: 48, alignItems: 'center' }}>
           <Adesivo fruit={s.me?.fruit} size={42} />
           {outro && <span style={{ marginLeft: -10 }}><Adesivo fruit={outro.fruit} size={42} /></span>}
         </button>
@@ -155,7 +155,10 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
   const arquivarCat = async (id: string) => {
     await supabase.from('categories').update({ archived: true }).eq('id', id); await s.reload()
   }
-  const sair = async () => { await supabase.auth.signOut(); onClose() }
+  const sair = async () => {
+    try { Object.keys(localStorage).filter(k => k.startsWith('copia:') || k === 'fila-offline').forEach(k => localStorage.removeItem(k)) } catch { /* nada */ }
+    await supabase.auth.signOut(); onClose()
+  }
 
   return (
     <Sheet open={open} onClose={onClose} title="Ajustes">

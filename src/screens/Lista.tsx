@@ -5,6 +5,7 @@ import { basketByMarket, contaPadrao, invoiceMonth, latestByMarket } from '../li
 import { ago, money, monthOf, norm, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
+import { gravarOuGuardar } from '../lib/fila'
 import type { Item, Market, Method } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
 import { EscolherConta } from './Saldos'
@@ -79,12 +80,11 @@ export function Lista() {
       const pick = s.picks.find(k => k.norm === norm(p.name))
       return { ...p, section: guessSection(p.name), ean: pick?.ean ?? null, product: pick?.product ?? null }
     })
-    const tmp = rows.map((r, i) => ({ ...r, id: `tmp-${Date.now()}-${i}`, note: null, checked: false, price: null, added_by: s.me?.user_id ?? null, checked_by: null, checked_at: null, pantry_id: null, created_at: new Date().toISOString() }))
-    s.patch('items', it => [...it, ...tmp])
-    const tmpIds = new Set(tmp.map(t => t.id))
-    const { data, error } = await supabase.from('shopping_items').insert(rows).select()
-    s.patch('items', it => [...it.filter(i => !tmpIds.has(i.id) && !(data ?? []).some((d: Item) => d.id === i.id)), ...((data ?? []) as Item[])])
-    if (error) s.toast(say(error), 'erro')
+    const agora = new Date().toISOString()
+    const linhas = rows.map(r => ({ ...r, id: crypto.randomUUID(), added_by: s.me?.user_id ?? null, created_at: agora }))
+    s.patch('items', it => [...it, ...linhas.map(l => ({ ...l, note: null, checked: false, price: null, checked_by: null, checked_at: null, pantry_id: null }))])
+    const { erro } = await gravarOuGuardar({ tipo: 'insert', tabela: 'shopping_items', linhas })
+    if (erro) { s.toast(say({ message: erro }), 'erro'); s.patch('items', it => it.filter(i => !linhas.some(l => l.id === i.id))) }
   }
 
   const marcar = async (item: Item, el: HTMLElement | null) => {
@@ -92,10 +92,10 @@ export function Lista() {
     if (checked) voarParaSacola(el, item.name)
     if (checked && mercado) setPrecoDe(item)
     s.patch('items', it => it.map(i => i.id === item.id ? { ...i, checked, checked_by: checked ? s.me?.user_id ?? null : null } : i))
-    const { error } = await supabase.from('shopping_items').update({
+    const { erro } = await gravarOuGuardar({ tipo: 'update', tabela: 'shopping_items', id: item.id, valores: {
       checked, checked_by: checked ? s.me?.user_id : null, checked_at: checked ? new Date().toISOString() : null, ...(checked ? {} : { price: null }),
-    }).eq('id', item.id)
-    if (error) s.toast(say(error), 'erro')
+    } })
+    if (erro) s.toast(say({ message: erro }), 'erro')
   }
 
   const enviar = (e: FormEvent) => { e.preventDefault(); adicionar(texto) }
@@ -264,17 +264,17 @@ function EditarItem({ item, onClose, onComparar }: { item: Item | null; onClose:
     if (!form) return
     onClose()
     s.patch('items', it => it.map(i => i.id === form.id ? form : i))
-    const { error } = await supabase.from('shopping_items').update({
+    const { erro } = await gravarOuGuardar({ tipo: 'update', tabela: 'shopping_items', id: form.id, valores: {
       name: form.name.trim() || item?.name, qty: form.qty || 1, unit: form.unit, section: form.section, note: form.note || null,
-    }).eq('id', form.id)
-    if (error) s.toast(say(error), 'erro')
+    } })
+    if (erro) s.toast(say({ message: erro }), 'erro')
   }
   const apagar = async () => {
     if (!form) return
     onClose()
     s.patch('items', it => it.filter(i => i.id !== form.id))
-    const { error } = await supabase.from('shopping_items').delete().eq('id', form.id)
-    if (error) s.toast(say(error), 'erro'); else s.toast(`${form.name} saiu da lista`)
+    const { erro } = await gravarOuGuardar({ tipo: 'delete', tabela: 'shopping_items', ids: [form.id] })
+    if (erro) s.toast(say({ message: erro }), 'erro'); else s.toast(`${form.name} saiu da lista`)
   }
   const historico = form ? latestByMarket(s.prices, form.name) : []
   return (
@@ -338,8 +338,8 @@ function PrecoItem({ item, mercado, onClose }: { item: Item | null; mercado: Mar
     onClose()
     const price = c.value > 0 ? c.value : null
     s.patch('items', it => it.map(i => i.id === item.id ? { ...i, price } : i))
-    const { error } = await supabase.from('shopping_items').update({ price }).eq('id', item.id)
-    if (error) s.toast(say(error), 'erro')
+    const { erro } = await gravarOuGuardar({ tipo: 'update', tabela: 'shopping_items', id: item.id, valores: { price } })
+    if (erro) s.toast(say({ message: erro }), 'erro')
   }
   return (
     <Sheet open={!!item} onClose={onClose} title={item ? `Preço de ${item.name}` : ''}>
@@ -417,6 +417,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
 
   const confirmar = async () => {
     if (busy) return
+    if (!navigator.onLine) return s.toast('Para fechar a compra precisa de internet. Os itens continuam no carrinho.', 'erro')
     setBusy(true)
     try {
       const total = c.value

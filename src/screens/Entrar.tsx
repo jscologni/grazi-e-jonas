@@ -131,10 +131,11 @@ export function Casa() {
   const enviar = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true); setErro('')
-    const { error } = modo === 'criar'
+    const { data, error } = modo === 'criar'
       ? await supabase.rpc('create_household', { p_name: 'Grazi e Jonas', p_member: nome, p_fruit: fruta })
       : await supabase.rpc('join_household', { p_code: codigo, p_member: nome, p_fruit: fruta })
     if (error) { setErro(say(error)); setBusy(false); return }
+    if (!data || !(data as { id?: string }).id) { setErro('Código não encontrado. Confira as 8 letras e números com quem te convidou.'); setBusy(false); return }
     await reload()
   }
 
@@ -150,9 +151,9 @@ export function Casa() {
         {modo === 'entrar' && (
           <label className="campo">
             <span>Código da casa</span>
-            <input className="entrada" required value={codigo} maxLength={6} autoCapitalize="characters"
+            <input className="entrada" required value={codigo} maxLength={8} autoCapitalize="characters"
               style={{ textTransform: 'uppercase', letterSpacing: '0.3em', fontWeight: 800 }}
-              onChange={e => setCodigo(e.target.value)} placeholder="A1B2C3" />
+              onChange={e => setCodigo(e.target.value)} placeholder="K7Q2ZP9M" />
           </label>
         )}
         <label className="campo">
