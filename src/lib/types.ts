@@ -9,6 +9,7 @@ export interface Item {
   id: string; name: string; qty: number; unit: string; section: string; note: string | null
   checked: boolean; price: number | null; added_by: string | null; checked_by: string | null
   checked_at: string | null; pantry_id: string | null; created_at: string
+  ean: string | null; product: string | null
 }
 export interface Trip { id: string; market_id: string | null; total: number; items_count: number; created_by: string | null; created_at: string }
 export interface Price { id: string; market_id: string | null; name: string; norm: string; unit: string; unit_price: number; seen_at: string }
@@ -34,3 +35,4 @@ export interface Goal { id: string; name: string; emoji: string; target: number;
 export interface GoalMove { id: string; goal_id: string; amount: number; member_id: string | null; month: string; note: string | null; created_at: string }
 export interface Account { id: string; name: string; owner: string | null; initial_balance: number; initial_date: string; archived: boolean; created_at: string }
 export interface CardPayment { id: string; card_id: string; account_id: string | null; amount: number; month: string; paid_on: string; member_id: string | null; created_at: string }
+export interface ProductPick { id: string; norm: string; ean: string; product: string }

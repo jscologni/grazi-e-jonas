@@ -21,6 +21,15 @@ function falso(): unknown {
   return p
 }
 Object.assign(supabase, { from: () => falso(), rpc: () => falso() })
+const CAT = [
+  ['7896089011357', 'Café Torrado e Moído a Vácuo Tradicional Pilão 500g', [['bistek', 'Bistek', 21.6, 29.84], ['giassi', 'Giassi', 22.98], ['angeloni', 'Angeloni', 22.99], ['atacadao', 'Atacadão', 20.9]]],
+  ['7896089013405', 'Café Pilão Extra Forte 500g', [['angeloni', 'Angeloni', 22.99, 25.99], ['bistek', 'Bistek', 21.6]]],
+  ['7896051111016', 'Leite UHT Integral Tirol 1l', [['giassi', 'Giassi', 4.79], ['angeloni', 'Angeloni', 5.29], ['bistek', 'Bistek', 4.99], ['atacadao', 'Atacadão', 4.59]]],
+  ['7891022100754', 'Detergente Ypê Neutro 500ml', [['giassi', 'Giassi', 2.39], ['atacadao', 'Atacadão', 1.99], ['bistek', 'Bistek', 2.49]]],
+] as const
+const ofertas = CAT.flatMap(([ean, nome, lojas]) => lojas.map(([loja, mercado, preco, de]) => ({ loja, mercado, nome, marca: null, ean, preco, de: de ?? null, porKg: false, imagem: null, link: '#' })))
+window.__precosFalsos = p => 'eans' in p ? ofertas.filter(o => p.eans.includes(o.ean)) : ofertas.filter(o => o.nome.toLowerCase().includes(p.termo.toLowerCase().split(' ')[0]))
+
 
 const J = 'u-jonas', G = 'u-grazi'
 const mes = monthOf(new Date())
@@ -55,6 +64,8 @@ const data: Data = {
     id: id(), name: name as string, qty: qty as number, unit: unit as string, section: section as string, note: null,
     checked: i === 1, price: i === 1 ? 12.9 : null, added_by: by as string, checked_by: i === 1 ? G : null,
     checked_at: null, pantry_id: null, created_at: antes(10 - i),
+    ean: name === 'Café 500g' ? '7896089011357' : name === 'Leite integral' ? '7896051111016' : null,
+    product: name === 'Café 500g' ? 'Café Torrado e Moído a Vácuo Tradicional Pilão 500g' : name === 'Leite integral' ? 'Leite UHT Integral Tirol 1l' : null,
   })),
   trips: [],
   prices: [
@@ -106,6 +117,7 @@ const data: Data = {
     { id: 'a1', name: 'Nubank', owner: J, initial_balance: 2350, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
     { id: 'a2', name: 'Caixa', owner: G, initial_balance: 1820.5, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
   ],
+  picks: [],
   cardPays: [{ id: 'p1', card_id: 'k1', account_id: 'a1', amount: 150, month: mes, paid_on: hoje, member_id: J, created_at: antes(2) }],
   moves: [
     { id: id(), goal_id: 'g1', amount: 2300, member_id: J, month: addMonths(mes, -2), note: null, created_at: antes(800) },

@@ -149,6 +149,15 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .item-riscado .nome { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--tinta-suave); }
 .dica-preco { font-size: 12.5px; font-weight: 650; color: var(--folha); }
 .dica-preco.cara { color: var(--abobora); }
+.lupa { width: 36px; height: 36px; border-radius: 50%; background: var(--chao); font-size: 16px; flex: none; display: grid; place-items: center; }
+.produto { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border-top: 1px solid var(--linha); }
+.produto:first-child { border-top: 0; }
+.produto img { width: 52px; height: 52px; object-fit: contain; border-radius: 12px; background: #fff; }
+.produto .precos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.produto .preco-loja { font-size: 13px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--chao); white-space: nowrap; }
+.produto .preco-loja.melhor { background: var(--folha); color: var(--sobre-folha); }
+.produto .preco-loja s { opacity: 0.6; font-weight: 500; margin-left: 4px; }
+
 
 /* ---------------------------------------------------------------- adesivo de fruta (avatar) */
 .adesivo {

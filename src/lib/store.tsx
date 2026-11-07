@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { supabase } from './supabase'
-import type { Account, Bill, Card, CardPayment, Category, Chore, ChoreLog, Goal, GoalMove, Household, Item, Market, Member, Pantry, Price, Trip, Tx } from './types'
+import type { Account, Bill, Card, CardPayment, ProductPick, Category, Chore, ChoreLog, Goal, GoalMove, Household, Item, Market, Member, Pantry, Price, Trip, Tx } from './types'
 
 export interface Data {
   household: Household | null
@@ -21,6 +21,7 @@ export interface Data {
   moves: GoalMove[]
   accounts: Account[]
   cardPays: CardPayment[]
+  picks: ProductPick[]
 }
 type Table = keyof Omit<Data, 'household'>
 
@@ -41,10 +42,11 @@ const TABLES: Record<Table, { table: string; order?: [string, boolean] }> = {
   moves: { table: 'goal_moves', order: ['created_at', false] },
   accounts: { table: 'accounts', order: ['created_at', true] },
   cardPays: { table: 'card_payments', order: ['paid_on', false] },
+  picks: { table: 'product_picks', order: ['created_at', true] },
 }
 const EMPTY: Data = {
   household: null, members: [], items: [], markets: [], trips: [], prices: [], pantry: [], chores: [],
-  choreLog: [], categories: [], cards: [], bills: [], txs: [], goals: [], moves: [], accounts: [], cardPays: [],
+  choreLog: [], categories: [], cards: [], bills: [], txs: [], goals: [], moves: [], accounts: [], cardPays: [], picks: [],
 }
 
 export interface Ctx extends Data {

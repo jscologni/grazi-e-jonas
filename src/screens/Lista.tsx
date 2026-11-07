@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Suspense, lazy, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MARKET_SUGGESTIONS, METHODS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
 import { basketByMarket, contaPadrao, invoiceMonth, latestByMarket } from '../lib/finance'
 import { ago, money, monthOf, norm, today } from '../lib/format'
@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase'
 import type { Item, Market, Method } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
 import { EscolherConta } from './Saldos'
+import { Comparar } from './Comparar'
+import { precosPorCodigo, type Oferta } from '../lib/web'
 
 const LerQR = lazy(() => import('./LerQR').then(m => ({ default: m.LerQR })))
 
@@ -22,12 +24,32 @@ export function Lista() {
   const [precoDe, setPrecoDe] = useState<Item | null>(null)
   const [escolherMercado, setEscolherMercado] = useState(false)
   const [fechar, setFechar] = useState(false)
+  const [comparar, setComparar] = useState<Item | null>(null)
+  const [web, setWeb] = useState<Oferta[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const mercado = s.markets.find(m => m.id === mercadoId) ?? null
   const abertos = s.items.filter(i => !i.checked)
   const riscados = s.items.filter(i => i.checked)
   const noCarrinho = riscados.reduce((t, i) => t + (i.price ?? 0) * i.qty, 0)
+
+  const eans = [...new Set(abertos.map(i => i.ean).filter(Boolean) as string[])].sort().join(',')
+  useEffect(() => {
+    if (!eans) { setWeb([]); return }
+    let vivo = true
+    precosPorCodigo(eans.split(',')).then(o => { if (vivo) setWeb(o) }).catch(() => {})
+    return () => { vivo = false }
+  }, [eans])
+  const ofertasDe = (ean: string | null) => ean ? web.filter(o => o.ean === ean).sort((a, b) => a.preco - b.preco) : []
+  const cestaSites = useMemo(() => {
+    const com = abertos.filter(i => i.ean)
+    const lojas = new Map<string, { mercado: string; total: number; n: number }>()
+    for (const it of com) for (const o of web.filter(x => x.ean === it.ean)) {
+      const r = lojas.get(o.loja) ?? { mercado: o.mercado, total: 0, n: 0 }
+      r.total += o.preco * (+it.qty || 1); r.n++; lojas.set(o.loja, r)
+    }
+    return { com: com.length, lojas: [...lojas.values()].sort((a, b) => b.n - a.n || a.total - b.total) }
+  }, [abertos, web])
 
   const grupos = useMemo(() => SECTIONS.map(sec => ({
     sec, itens: s.items.filter(i => i.section === sec.id).sort((a, b) => Number(a.checked) - Number(b.checked) || a.created_at.localeCompare(b.created_at)),
@@ -48,7 +70,11 @@ export function Lista() {
     if (!nomes.length) return
     setTexto('')
     inputRef.current?.focus()
-    const rows = nomes.map(n => { const p = parseItem(n); return { ...p, section: guessSection(p.name) } })
+    const rows = nomes.map(n => {
+      const p = parseItem(n)
+      const pick = s.picks.find(k => k.norm === norm(p.name))
+      return { ...p, section: guessSection(p.name), ean: pick?.ean ?? null, product: pick?.product ?? null }
+    })
     const tmp = rows.map((r, i) => ({ ...r, id: `tmp-${Date.now()}-${i}`, note: null, checked: false, price: null, added_by: s.me?.user_id ?? null, checked_by: null, checked_at: null, pantry_id: null, created_at: new Date().toISOString() }))
     s.patch('items', it => [...it, ...tmp])
     const tmpIds = new Set(tmp.map(t => t.id))
@@ -113,7 +139,8 @@ export function Lista() {
           <div className="folha-lista">
             <AnimatePresence initial={false}>
               {itens.map(item => (
-                <LinhaItem key={item.id} item={item} onMarcar={marcar} onEditar={() => setEditando(item)} onPreco={() => setPrecoDe(item)} />
+                <LinhaItem key={item.id} item={item} onMarcar={marcar} onEditar={() => setEditando(item)} onPreco={() => setPrecoDe(item)}
+                  ofertas={ofertasDe(item.ean)} onComparar={() => setComparar(item)} />
               ))}
             </AnimatePresence>
           </div>
@@ -130,9 +157,28 @@ export function Lista() {
         </div>
       )}
 
+      {cestaSites.lojas.length > 0 && (
+        <>
+          <div className="secao"><h2 className="subtitulo">Nos sites dos mercados</h2></div>
+          <div className="folha-lista">
+            {cestaSites.lojas.map((r, i) => (
+              <div className="linha" key={r.mercado}>
+                <span style={{ fontSize: 22 }} aria-hidden>{i === 0 ? '🏆' : '🛒'}</span>
+                <div className="meio"><div className="nome">{r.mercado}</div>
+                  <div className="info">tem {r.n} de {cestaSites.com} {cestaSites.com === 1 ? 'produto escolhido' : 'produtos escolhidos'}</div></div>
+                <span className="valor">{money(r.total)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="pequeno leve" style={{ margin: '8px 4px 0' }}>
+            Preços das lojas online, que podem variar um pouco na prateleira. Toque em 🔎 num item para escolher o produto e entrar na conta.
+          </p>
+        </>
+      )}
+
       {cesta.length > 0 && abertos.length > 0 && (
         <>
-          <div className="secao"><h2 className="subtitulo">Onde sai mais barato</h2></div>
+          <div className="secao"><h2 className="subtitulo">Pelo que vocês anotaram</h2></div>
           <div className="folha-lista">
             {cesta.slice(0, 5).map((r, i) => (
               <div className="linha" key={r.market.id}>
@@ -151,7 +197,8 @@ export function Lista() {
         </>
       )}
 
-      <EditarItem item={editando} onClose={() => setEditando(null)} />
+      <EditarItem item={editando} onClose={() => setEditando(null)} onComparar={i => { setEditando(null); setComparar(i) }} />
+      <Comparar item={comparar} onClose={() => setComparar(null)} />
       <PrecoItem item={precoDe} mercado={mercado} onClose={() => setPrecoDe(null)} />
       <EscolherMercado open={escolherMercado} atual={mercadoId} onClose={() => setEscolherMercado(false)}
         onPick={id => { setMercadoId(id); gravarMercado(id); setEscolherMercado(false) }} />
@@ -161,7 +208,7 @@ export function Lista() {
   )
 }
 
-function LinhaItem({ item, onMarcar, onEditar, onPreco }: { item: Item; onMarcar: (i: Item, el: HTMLElement | null) => void; onEditar: () => void; onPreco: () => void }) {
+function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, onComparar }: { item: Item; onMarcar: (i: Item, el: HTMLElement | null) => void; onEditar: () => void; onPreco: () => void; ofertas: Oferta[]; onComparar: () => void }) {
   const s = useStore()
   const ref = useRef<HTMLDivElement>(null)
   const precos = latestByMarket(s.prices, item.name)
@@ -179,18 +226,23 @@ function LinhaItem({ item, onMarcar, onEditar, onPreco }: { item: Item; onMarcar
         <div className="nome">{qtyLabel(+item.qty, item.unit) && <span className="leve">{qtyLabel(+item.qty, item.unit)} </span>}{item.name}</div>
         {item.checked
           ? <div className="info">no carrinho{item.checked_by && item.checked_by !== s.me?.user_id ? ` por ${s.memberName(item.checked_by)}` : ''}</div>
-          : melhor
-            ? <div className="dica-preco">{money(melhor.unit_price)} no {nomeMercado(melhor.market_id)} · {ago(melhor.seen_at)}</div>
-            : item.note ? <div className="info">{item.note}</div> : null}
+          : ofertas[0]
+            ? <div className="dica-preco">{money(ofertas[0].preco)}{ofertas[0].porKg ? '/kg' : ''} no {ofertas[0].mercado} · site{ofertas.length > 1 ? ` · ${money(ofertas[ofertas.length - 1].preco)} no ${ofertas[ofertas.length - 1].mercado}` : ''}</div>
+            : melhor
+              ? <div className="dica-preco">{money(melhor.unit_price)} no {nomeMercado(melhor.market_id)} · {ago(melhor.seen_at)}</div>
+              : item.note ? <div className="info">{item.note}</div> : null}
       </button>
       {item.checked
         ? <button className="chip" onClick={onPreco} style={{ minHeight: 34 }}>{item.price != null ? money(item.price * item.qty) : '+ preço'}</button>
-        : quem && <Adesivo fruit={quem.fruit} size={24} title={`Pedido por ${quem.name}`} />}
+        : <>
+            <button className="lupa" onClick={onComparar} aria-label={`Comparar ${item.name} nos sites`} title="Comparar nos sites">{item.ean ? '🏷️' : '🔎'}</button>
+            {quem && <Adesivo fruit={quem.fruit} size={24} title={`Pedido por ${quem.name}`} />}
+          </>}
     </motion.div>
   )
 }
 
-function EditarItem({ item, onClose }: { item: Item | null; onClose: () => void }) {
+function EditarItem({ item, onClose, onComparar }: { item: Item | null; onClose: () => void; onComparar: (i: Item) => void }) {
   const s = useStore()
   const [form, setForm] = useState<Item | null>(null)
   if (item && form?.id !== item.id) setForm(item)
@@ -248,6 +300,9 @@ function EditarItem({ item, onClose }: { item: Item | null; onClose: () => void 
               </div>
             </div>
           )}
+          <button className="btn banana cheio" style={{ marginTop: 18 }} onClick={() => item && onComparar(item)}>
+            🔎 {form.ean ? `Produto: ${form.product}` : 'Comparar nos sites dos mercados'}
+          </button>
           <div className="acoes">
             <button className="btn fantasma" onClick={apagar}>Tirar da lista</button>
             <button className="btn" onClick={salvar}>Salvar</button>
