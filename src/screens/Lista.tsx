@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Suspense, lazy, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MARKET_SUGGESTIONS, METHODS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
-import { basketByMarket, invoiceMonth, latestByMarket } from '../lib/finance'
+import { basketByMarket, contaPadrao, invoiceMonth, latestByMarket } from '../lib/finance'
 import { ago, money, monthOf, norm, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Item, Market, Method } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
+import { EscolherConta } from './Saldos'
 
 const LerQR = lazy(() => import('./LerQR').then(m => ({ default: m.LerQR })))
 
@@ -328,10 +329,11 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
   const [metodo, setMetodo] = useState<Method>('debito')
   const [cartao, setCartao] = useState<string | null>(null)
   const [quem, setQuem] = useState<string | null>(null)
+  const [conta, setConta] = useState<string | null>(null)
   const [chave, setChave] = useState<string | null>(null)
   const [lendo, setLendo] = useState(false)
   const [busy, setBusy] = useState(false)
-  if (open && !aberto) { setAberto(true); c.set(soma); setMercadoId(mercado?.id ?? null); setQuem(s.me?.user_id ?? null); setChave(null) }
+  if (open && !aberto) { setAberto(true); c.set(soma); setMercadoId(mercado?.id ?? null); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setChave(null) }
   if (!open && aberto) setAberto(false)
 
   const cards = s.cards.filter(k => !k.archived)
@@ -383,6 +385,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
           card_id: metodo === 'credito' ? card?.id ?? null : null,
           month: metodo === 'credito' && card ? invoiceMonth(today(), card) : monthOf(new Date()),
           installment: metodo === 'credito' ? 1 : null, installments: metodo === 'credito' ? 1 : null, trip_id: trip.id,
+          account_id: metodo === 'credito' ? null : conta,
         }).select().single()
         if (error) throw error
         await supabase.from('trips').update({ transaction_id: tx.id }).eq('id', trip.id)
@@ -424,7 +427,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
         <>
           <div className="campo"><span>Quem pagou</span>
             <div className="chips">
-              {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => setQuem(m.user_id)}>
+              {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}>
                 <Adesivo fruit={m.fruit} size={22} /> {m.name}</button>)}
             </div>
           </div>
@@ -439,6 +442,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
                 : <p className="pequeno" style={{ color: 'var(--tomate)', fontWeight: 700 }}>Cadastre um cartão em Dinheiro › Cartões.</p>
             )}
           </div>
+          {metodo !== 'credito' && <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />}
         </>
       )}
 

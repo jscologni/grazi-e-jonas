@@ -96,12 +96,17 @@ const data: Data = {
     { kind: 'out', amount: 249.9, description: 'Tênis', category_id: 'c-Lazer', member_id: J, occurred_on: ontem, method: 'credito', card_id: 'k1', group_id: 'g1', installment: 2, installments: 3 },
   ].map(t => ({
     id: id(), method: 'pix', card_id: null, group_id: null, installment: null, installments: null, bill_id: null, trip_id: null,
-    created_by: t.member_id, created_at: antes(Math.random() * 48), month: mes, ...t,
+    created_by: t.member_id, created_at: antes(Math.random() * 48), month: mes, account_id: t.method === 'credito' ? null : (t.member_id === J ? 'a1' : 'a2'), ...t,
   })) as Data['txs'],
   goals: [
     { id: 'g1', name: 'Viagem pra Gramado', emoji: '✈️', target: 6000, deadline: iso(new Date(new Date().getFullYear() + 1, 6, 1)), color: 'abobora', archived: false, created_at: antes(900) },
     { id: 'g2', name: 'Reserva de emergência', emoji: '🛟', target: 15000, deadline: null, color: 'folha', archived: false, created_at: antes(900) },
   ],
+  accounts: [
+    { id: 'a1', name: 'Nubank', owner: J, initial_balance: 2350, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
+    { id: 'a2', name: 'Caixa', owner: G, initial_balance: 1820.5, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
+  ],
+  cardPays: [{ id: 'p1', card_id: 'k1', account_id: 'a1', amount: 150, month: mes, paid_on: hoje, member_id: J, created_at: antes(2) }],
   moves: [
     { id: id(), goal_id: 'g1', amount: 2300, member_id: J, month: addMonths(mes, -2), note: null, created_at: antes(800) },
     { id: id(), goal_id: 'g1', amount: 400, member_id: G, month: mes, note: null, created_at: antes(30) },

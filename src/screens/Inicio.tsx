@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { billsFor, choreStatus, summary } from '../lib/finance'
-import { ago, dayMonth, firstName, iso, money, monthOf } from '../lib/format'
+import { accountBalance, billsFor, choreStatus, faturasAPagar, summary } from '../lib/finance'
+import { ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Sheet } from '../ui'
@@ -23,6 +23,9 @@ export function Inicio({ ir }: { ir: Ir }) {
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
+  const bancos = s.accounts.filter(a => !a.archived)
+  const nasContas = bancos.reduce((t, a) => t + accountBalance(a, s.txs, s.cardPays), 0)
+  const faturas = faturasAPagar(s.cards, s.txs, s.cardPays, today())
 
   // o que o outro fez por último
   const atividade = useMemo(() => {
@@ -50,6 +53,12 @@ export function Inicio({ ir }: { ir: Ir }) {
       <button style={{ display: 'block', width: '100%', textAlign: 'left' }} onClick={() => ir('dinheiro')} aria-label="Ver o dinheiro do mês">
         <Etiqueta month={mes} {...res} />
       </button>
+      {bancos.length > 0 && (
+        <button className="bloco papel" onClick={() => ir('dinheiro')} style={{ display: 'flex', gap: 14, width: '100%', marginTop: 16, textAlign: 'left', padding: '14px 18px' }}>
+          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Nas contas</div><div className="num" style={{ fontWeight: 800, fontSize: 18 }}>{money(nasContas)}</div></div>
+          {faturas > 0 && <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Faturas a pagar</div><div className="num" style={{ fontWeight: 800, fontSize: 18, color: 'var(--tomate)' }}>{money(faturas)}</div></div>}
+        </button>
+      )}
 
       <div className="grade2" style={{ marginTop: 20 }}>
         <button className="bloco tomate" style={{ textAlign: 'left', minHeight: 128 }} onClick={() => ir('lista')}>

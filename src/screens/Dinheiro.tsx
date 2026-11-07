@@ -1,15 +1,16 @@
 import { motion } from 'motion/react'
 import { useId, useMemo, useState } from 'react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
-import { billsFor, goalProgress, summary, type BillState } from '../lib/finance'
+import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, summary, type BillState } from '../lib/finance'
 import { dayMonth, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Bill, Card, Goal, Method, Tx } from '../lib/types'
 import { Adesivo, Cartaz, MesNav, Sheet, Teclado, useCents } from '../ui'
 import { Lancar } from './Lancar'
+import { EscolherConta, Saldos } from './Saldos'
 
-type Aba = 'mes' | 'contas' | 'cartoes' | 'caixinhas'
+type Aba = 'mes' | 'saldos' | 'contas' | 'cartoes' | 'caixinhas'
 
 export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
   const s = useStore()
@@ -25,12 +26,13 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
       <Etiqueta month={month} {...res} />
 
       <div className="abas" role="tablist">
-        {([['mes', 'Lançamentos'], ['contas', 'Contas fixas'], ['cartoes', 'Cartões'], ['caixinhas', 'Caixinhas']] as [Aba, string][]).map(([id, n]) => (
+        {([['mes', 'Lançamentos'], ['saldos', 'Saldos'], ['contas', 'Contas fixas'], ['cartoes', 'Cartões'], ['caixinhas', 'Caixinhas']] as [Aba, string][]).map(([id, n]) => (
           <button key={id} role="tab" aria-selected={aba === id} onClick={() => setAba(id)}>{n}</button>
         ))}
       </div>
 
       {aba === 'mes' && <Lancamentos month={month} />}
+      {aba === 'saldos' && <Saldos />}
       {aba === 'contas' && <Contas month={month} />}
       {aba === 'cartoes' && <Cartoes month={month} />}
       {aba === 'caixinhas' && <Caixinhas month={month} />}
@@ -192,14 +194,15 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
   const [id, setId] = useState<string | null>(null)
   const [metodo, setMetodo] = useState<Method>('pix')
   const [quem, setQuem] = useState<string | null>(null)
-  if (estado && id !== estado.bill.id) { setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null) }
+  const [conta, setConta] = useState<string | null>(null)
+  if (estado && id !== estado.bill.id) { setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)) }
   if (!estado && id) setId(null)
   const pagar = async () => {
     if (!estado || c.value <= 0) return
     const contasCat = s.categories.find(k => k.kind === 'out' && k.name === 'Contas')
     const { error } = await supabase.from('transactions').insert({
       kind: 'out', amount: c.value, description: estado.bill.name, category_id: estado.bill.category_id ?? contasCat?.id ?? null,
-      member_id: quem, occurred_on: today(), month, method: metodo, bill_id: estado.bill.id,
+      member_id: quem, occurred_on: today(), month, method: metodo, bill_id: estado.bill.id, account_id: conta,
     })
     if (error) return s.toast(say(error), 'erro')
     if (estado.bill.variable) await supabase.from('bills').update({ amount: c.value }).eq('id', estado.bill.id)
@@ -228,8 +231,9 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
             <div className="chips">{METHODS.filter(m => m.id !== 'credito').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => setMetodo(m.id as Method)}>{m.label}</button>)}</div>
           </div>
           <div className="campo"><span>Quem pagou</span>
-            <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => setQuem(m.user_id)}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
+            <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
           </div>
+          <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />
           <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0}>Marcar como paga</button>
         </>
       )}
@@ -293,8 +297,14 @@ function Cartoes({ month }: { month: string }) {
   const [editar, setEditar] = useState<Card | 'novo' | null>(null)
   const [fatura, setFatura] = useState<Card | null>(null)
   const [aberto, setAberto] = useState<Tx | null>(null)
-  const atual = monthOf(new Date())
+  const [pagar, setPagar] = useState<Card | null>(null)
+  const [anterior, setAnterior] = useState<Card | null>(null)
   const cards = s.cards.filter(k => !k.archived)
+  const desfazer = async (id: string) => {
+    const { error } = await supabase.from('card_payments').delete().eq('id', id)
+    if (error) return s.toast(say(error), 'erro')
+    s.toast('Pagamento desfeito'); await s.reload()
+  }
   return (
     <>
       <div className="secao"><h2 className="subtitulo">Faturas de {monthName(month)}</h2>
@@ -302,9 +312,11 @@ function Cartoes({ month }: { month: string }) {
       {cards.length === 0 && <div className="vazio"><span className="emoji">💳</span>Cadastre os cartões com dia de fechamento e vencimento. As compras parceladas caem sozinhas nas faturas certas.</div>}
       <div style={{ display: 'grid', gap: 12 }}>
         {cards.map(k => {
-          const doMes = s.txs.filter(t => t.card_id === k.id && t.month === month)
-          const valor = doMes.reduce((a, t) => a + +t.amount, 0)
-          const usado = s.txs.filter(t => t.card_id === k.id && t.month >= atual).reduce((a, t) => a + +t.amount, 0)
+          const f = invoice(k, month, s.txs, s.cardPays)
+          const n = s.txs.filter(t => t.card_id === k.id && t.month === month).length
+          const atual = invoiceMonth(today(), k)
+          const meses = [...new Set(s.txs.filter(t => t.card_id === k.id && t.month >= atual).map(t => t.month))]
+          const usado = meses.reduce((a, m) => a + invoice(k, m, s.txs, s.cardPays).falta, 0)
           return (
             <motion.button key={k.id} className={`cartao cor-${k.color}`} onClick={() => setFatura(k)} whileTap={{ scale: 0.98 }} style={{ textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
@@ -312,12 +324,15 @@ function Cartoes({ month }: { month: string }) {
                 <span className="pequeno" style={{ opacity: 0.85 }}>fecha {k.closing_day} · vence {k.due_day}</span>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <div className="pequeno" style={{ opacity: 0.85 }}>fatura de {monthShort(month)} · {doMes.length} {doMes.length === 1 ? 'compra' : 'compras'}</div>
-                <div className="cabe"><Cartaz value={valor} size="g" /></div>
+                <div className="pequeno" style={{ opacity: 0.85 }}>
+                  fatura de {monthShort(month)} · {n} {n === 1 ? 'compra' : 'compras'}
+                  {f.total > 0 && (f.falta === 0 ? ' · paga ✓' : f.pago > 0 ? ` · faltam ${money(f.falta)}` : '')}
+                </div>
+                <div className="cabe"><Cartaz value={f.total} size="g" /></div>
                 {k.limit_amount ? (
                   <div style={{ marginTop: 8 }}>
                     <div className="barrinha"><i style={{ width: `${Math.min(100, (usado / +k.limit_amount) * 100)}%` }} /></div>
-                    <div className="pequeno" style={{ opacity: 0.85, marginTop: 4 }}>{money(usado)} comprometidos de {money(+k.limit_amount)}</div>
+                    <div className="pequeno" style={{ opacity: 0.85, marginTop: 4 }}>{money(usado)} usados de {money(+k.limit_amount)} · livre {money(Math.max(0, +k.limit_amount - usado))}</div>
                   </div>
                 ) : null}
               </div>
@@ -325,21 +340,121 @@ function Cartoes({ month }: { month: string }) {
           )
         })}
       </div>
+
       <Sheet open={!!fatura} onClose={() => setFatura(null)} title={fatura ? `${fatura.name} · ${monthShort(month)}` : ''}>
         {fatura && (() => {
+          const f = invoice(fatura, month, s.txs, s.cardPays)
           const doMes = s.txs.filter(t => t.card_id === fatura.id && t.month === month)
           return (
             <>
-              {doMes.length ? <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>{doMes.map(t => <LinhaTx key={t.id} t={t} onClick={() => setAberto(t)} />)}</div>
-                : <p className="leve">Nenhuma compra nesta fatura.</p>}
+              <div className="grade2">
+                <div className="bloco papel" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
+                  <div className="pequeno" style={{ fontWeight: 700 }}>Fatura</div><div className="cabe"><Cartaz value={f.total} size="m" /></div>
+                  {f.pago > 0 && <div className="pequeno leve">pago {money(f.pago)}</div>}
+                </div>
+                <div className={`bloco ${f.falta > 0 ? 'tomate' : 'folha'}`}>
+                  <div className="pequeno" style={{ fontWeight: 700 }}>{f.falta > 0 ? 'Falta pagar' : 'Paga'}</div>
+                  <div className="cabe"><Cartaz value={f.falta} size="m" /></div>
+                </div>
+              </div>
+              <div className="acoes" style={{ marginTop: 14 }}>
+                <button className="btn fantasma" onClick={() => setAnterior(fatura)}>+ Valor de antes</button>
+                <button className="btn folha" disabled={f.falta <= 0} onClick={() => setPagar(fatura)}>Pagar fatura</button>
+              </div>
+              {f.pagos.length > 0 && (
+                <div className="campo"><span>Pagamentos</span>
+                  <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
+                    {f.pagos.map(p => (
+                      <div className="linha" key={p.id} style={{ minHeight: 50 }}>
+                        <span aria-hidden>✅</span>
+                        <div className="meio"><div className="nome">{money(+p.amount)}</div>
+                          <div className="info">{dayMonth(p.paid_on)} · {s.memberName(p.member_id)}{p.account_id ? ` · ${s.accounts.find(a => a.id === p.account_id)?.name ?? ''}` : ''}</div></div>
+                        <button className="chip" onClick={() => desfazer(p.id)} style={{ minHeight: 34 }}>Desfazer</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="campo"><span>Compras</span>
+                {doMes.length ? <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>{doMes.map(t => <LinhaTx key={t.id} t={t} onClick={() => setAberto(t)} />)}</div>
+                  : <p className="leve" style={{ margin: 0 }}>Nenhuma compra nesta fatura.</p>}
+              </div>
               <button className="btn fantasma cheio" style={{ marginTop: 16 }} onClick={() => { setEditar(fatura); setFatura(null) }}>Editar cartão</button>
             </>
           )
         })()}
       </Sheet>
+      <PagarFatura cartao={pagar} month={month} onClose={() => setPagar(null)} />
+      <ValorAnterior cartao={anterior} month={month} onClose={() => setAnterior(null)} />
       <Lancar open={!!aberto} tx={aberto} onClose={() => setAberto(null)} />
       <EditarCartao cartao={editar} onClose={() => setEditar(null)} />
     </>
+  )
+}
+
+/** Pagar fatura: o valor sai da conta escolhida e abate do que falta na fatura */
+function PagarFatura({ cartao, month, onClose }: { cartao: Card | null; month: string; onClose: () => void }) {
+  const s = useStore()
+  const c = useCents(0)
+  const [id, setId] = useState<string | null>(null)
+  const [quem, setQuem] = useState<string | null>(null)
+  const [conta, setConta] = useState<string | null>(null)
+  const [dia, setDia] = useState(today())
+  if (cartao && id !== cartao.id) {
+    setId(cartao.id); c.set(invoice(cartao, month, s.txs, s.cardPays).falta)
+    setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setDia(today())
+  }
+  if (!cartao && id) setId(null)
+  const falta = cartao ? invoice(cartao, month, s.txs, s.cardPays).falta : 0
+  const pagar = async () => {
+    if (!cartao || c.value <= 0) return
+    const { error } = await supabase.from('card_payments').insert({ card_id: cartao.id, account_id: conta, amount: c.value, month, paid_on: dia, member_id: quem })
+    if (error) return s.toast(say(error), 'erro')
+    const resto = Math.max(0, falta - c.value)
+    s.toast(resto > 0 ? `Pago ${money(c.value)} · faltam ${money(resto)}` : `Fatura do ${cartao.name} paga`)
+    await s.reload(); onClose()
+  }
+  return (
+    <Sheet open={!!cartao} onClose={onClose} title={cartao ? `Pagar ${cartao.name}` : ''}>
+      <p className="leve pequeno" style={{ margin: 0 }}>Falta {money(falta)} na fatura de {monthName(month)}. Pagou só uma parte? Digite o valor pago.</p>
+      <div className="visor entra cabe"><Cartaz value={c.value} size="g" /></div>
+      <Teclado onKey={c.press} />
+      <div className="campo"><span>Quem pagou</span>
+        <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
+      </div>
+      <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />
+      <label className="campo"><span>Dia</span><input className="entrada" type="date" value={dia} onChange={e => setDia(e.target.value || today())} /></label>
+      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0}>Pagar {money(c.value)}</button>
+    </Sheet>
+  )
+}
+
+/** Valor que já estava na fatura antes de usar o app (entra como uma compra só) */
+function ValorAnterior({ cartao, month, onClose }: { cartao: Card | null; month: string; onClose: () => void }) {
+  const s = useStore()
+  const c = useCents(0)
+  const [id, setId] = useState<string | null>(null)
+  if (cartao && id !== cartao.id) { setId(cartao.id); c.set(0) }
+  if (!cartao && id) setId(null)
+  const salvar = async () => {
+    if (!cartao || c.value <= 0) return
+    const { error } = await supabase.from('transactions').insert({
+      kind: 'out', amount: c.value, description: 'Valor de antes do app', method: 'credito', card_id: cartao.id,
+      month, occurred_on: today(), installment: 1, installments: 1, member_id: null,
+    })
+    if (error) return s.toast(say(error), 'erro')
+    s.toast(`${money(c.value)} somado à fatura de ${monthShort(month)}`); await s.reload(); onClose()
+  }
+  return (
+    <Sheet open={!!cartao} onClose={onClose} title="Valor de antes do app">
+      <p className="leve pequeno" style={{ margin: 0 }}>
+        Quanto já estava na fatura de {monthName(month)} do {cartao?.name} antes de vocês começarem a lançar aqui.
+        Tem parcelas para os próximos meses? Troque o mês no topo e lance a de cada fatura.
+      </p>
+      <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
+      <Teclado onKey={c.press} />
+      <button className="btn cheio" style={{ marginTop: 20 }} onClick={salvar} disabled={c.value <= 0}>Somar à fatura</button>
+    </Sheet>
   )
 }
 

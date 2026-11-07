@@ -1,5 +1,5 @@
 import { addMonths, daysBetween, dueDate, monthOf, norm, parseISO } from './format'
-import type { Bill, Card, Goal, GoalMove, Market, Price, Tx } from './types'
+import type { Account, Bill, Card, CardPayment, Goal, GoalMove, Market, Price, Tx } from './types'
 
 /**
  * Em que mês uma compra no crédito pesa no caixa: o mês de vencimento da fatura.
@@ -83,3 +83,38 @@ export const choreStatus = (lastDone: string | null, every: number) => {
   if (days === 1) return { days, label: 'amanhã', late: false }
   return { days, label: `em ${days} dias`, late: false }
 }
+
+/** Saldo de uma conta: saldo inicial + entradas − saídas (fora crédito) − faturas pagas, a partir do dia do saldo inicial */
+export function accountBalance(acc: Account, txs: Tx[], pays: CardPayment[]) {
+  let v = +acc.initial_balance
+  for (const t of txs) {
+    if (t.account_id !== acc.id || t.occurred_on < acc.initial_date) continue
+    if (t.kind === 'in') v += +t.amount
+    else if (t.method !== 'credito') v -= +t.amount
+  }
+  for (const p of pays) if (p.account_id === acc.id && p.paid_on >= acc.initial_date) v -= +p.amount
+  return v
+}
+
+/** Fatura de um cartão num mês: total das compras, quanto já foi pago e quanto falta */
+export function invoice(card: Card, month: string, txs: Tx[], pays: CardPayment[]) {
+  const total = txs.filter(t => t.card_id === card.id && t.month === month && t.kind === 'out').reduce((a, t) => a + +t.amount, 0)
+  const pagos = pays.filter(p => p.card_id === card.id && p.month === month)
+  const pago = pagos.reduce((a, p) => a + +p.amount, 0)
+  return { total, pago, falta: Math.max(0, Math.round((total - pago) * 100) / 100), pagos }
+}
+
+/** Faturas que ainda vão sair das contas: fechadas e a atual (parcelas futuras não entram) */
+export function faturasAPagar(cards: Card[], txs: Tx[], pays: CardPayment[], hoje: string) {
+  let soma = 0
+  for (const c of cards.filter(k => !k.archived)) {
+    const ate = invoiceMonth(hoje, c)
+    const meses = new Set(txs.filter(t => t.card_id === c.id && t.month <= ate).map(t => t.month))
+    for (const m of meses) soma += invoice(c, m, txs, pays).falta
+  }
+  return soma
+}
+
+/** Conta padrão de uma pessoa: a primeira dela, ou a primeira da casa */
+export const contaPadrao = (accounts: Account[], member: string | null | undefined) =>
+  (accounts.find(a => !a.archived && a.owner === member) ?? accounts.find(a => !a.archived))?.id ?? null

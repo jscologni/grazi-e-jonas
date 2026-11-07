@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { METHODS } from '../lib/catalog'
-import { invoiceMonth } from '../lib/finance'
+import { contaPadrao, invoiceMonth } from '../lib/finance'
 import { addMonths, money, monthOf, monthShort, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Kind, Method, Tx } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents } from '../ui'
+import { EscolherConta } from './Saldos'
 
 /** Abre para lançar algo novo (tx = null) ou para ver/editar um lançamento existente */
 export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boolean; onClose: () => void; tx?: Tx | null; kindInicial?: Kind }) {
@@ -20,6 +21,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
   const [metodo, setMetodo] = useState<Method>('pix')
   const [cartao, setCartao] = useState<string | null>(null)
   const [parcelas, setParcelas] = useState(1)
+  const [conta, setConta] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   if (open && !aberto) {
@@ -27,6 +29,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
     setKind(tx?.kind ?? kindInicial); c.set(tx ? +tx.amount : 0); setDesc(tx?.description ?? ''); setCat(tx?.category_id ?? null)
     setQuem(tx?.member_id ?? s.me?.user_id ?? null); setData(tx?.occurred_on ?? today()); setMetodo(tx?.method ?? 'pix')
     setCartao(tx?.card_id ?? null); setParcelas(1)
+    setConta(tx ? tx.account_id : contaPadrao(s.accounts, s.me?.user_id))
   }
   if (!open && aberto) setAberto(false)
 
@@ -47,6 +50,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
         kind, description: desc.trim() || (cats.find(k => k.id === cat)?.name ?? (kind === 'in' ? 'Entrada' : 'Gasto')),
         category_id: cat, member_id: quem, occurred_on: data,
         method: kind === 'in' ? 'pix' : metodo, card_id: kind === 'out' && metodo === 'credito' ? cartao : null,
+        account_id: kind === 'out' && metodo === 'credito' ? null : conta,
       }
       if (editando && tx) {
         const { error } = await supabase.from('transactions').update({
@@ -113,7 +117,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
 
       <div className="campo"><span>{kind === 'in' ? 'Quem recebeu' : 'Quem gastou'}</span>
         <div className="chips">
-          {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => setQuem(m.user_id)}>
+          {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); if (!editando) setConta(contaPadrao(s.accounts, m.user_id)) }}>
             <Adesivo fruit={m.fruit} size={22} /> {m.name}</button>)}
         </div>
       </div>
@@ -146,6 +150,10 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
             </>
           ) : <p className="pequeno" style={{ color: 'var(--tomate)', fontWeight: 700 }}>Cadastre um cartão em Dinheiro › Cartões.</p>)}
         </div>
+      )}
+
+      {(kind === 'in' || metodo !== 'credito') && (
+        <EscolherConta value={conta} onChange={setConta} titulo={kind === 'in' ? 'Entrou em qual conta' : 'Saiu de qual conta'} />
       )}
 
       <button className={`btn cheio ${kind === 'in' ? 'folha' : 'tomate'}`} style={{ marginTop: 22 }} onClick={salvar} disabled={busy || c.value <= 0}>
