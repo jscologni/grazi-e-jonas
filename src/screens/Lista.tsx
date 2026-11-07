@@ -9,6 +9,8 @@ import type { Item, Market, Method } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
 import { EscolherConta } from './Saldos'
 import { Comparar } from './Comparar'
+import { EscanearNota, lerPendente } from './Nota'
+import { mercadoDoCnpj } from '../lib/mercado'
 import { precosPorCodigo, type Oferta } from '../lib/web'
 
 const LerQR = lazy(() => import('./LerQR').then(m => ({ default: m.LerQR })))
@@ -25,6 +27,8 @@ export function Lista() {
   const [escolherMercado, setEscolherMercado] = useState(false)
   const [fechar, setFechar] = useState(false)
   const [comparar, setComparar] = useState<Item | null>(null)
+  const [escanear, setEscanear] = useState(false)
+  const pendente = escanear ? null : lerPendente()
   const [web, setWeb] = useState<Oferta[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -107,10 +111,19 @@ export function Lista() {
             {riscados.length > 0 && ` · ${riscados.length} no carrinho`}
           </p>
         </div>
-        <button className={`btn pequeno ${mercado ? 'folha' : 'banana'}`} onClick={() => setEscolherMercado(true)}>
-          {mercado ? `🛒 ${mercado.name}` : '🛒 Estou no mercado'}
-        </button>
+        <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
+          <button className={`btn pequeno ${mercado ? 'folha' : 'banana'}`} onClick={() => setEscolherMercado(true)}>
+            {mercado ? `🛒 ${mercado.name}` : '🛒 Estou no mercado'}
+          </button>
+          <button className="btn pequeno fantasma" onClick={() => setEscanear(true)}>📷 Escanear nota</button>
+        </div>
       </div>
+      {pendente && (
+        <button className="bloco banana" onClick={() => setEscanear(true)} style={{ display: 'flex', width: '100%', gap: 12, alignItems: 'center', textAlign: 'left', padding: '12px 16px', marginBottom: 8 }}>
+          <span style={{ fontSize: 26 }} aria-hidden>🧾</span>
+          <span style={{ flex: 1 }}><b>Nota {pendente.mercado ? `do ${pendente.mercado} ` : ''}esperando</b><br /><span className="pequeno">Toque para colar o texto e guardar os preços</span></span>
+        </button>
+      )}
 
       <div className="adicionar">
         <form onSubmit={enviar}>
@@ -199,6 +212,7 @@ export function Lista() {
 
       <EditarItem item={editando} onClose={() => setEditando(null)} onComparar={i => { setEditando(null); setComparar(i) }} />
       <Comparar item={comparar} onClose={() => setComparar(null)} />
+      <EscanearNota open={escanear} onClose={() => setEscanear(false)} />
       <PrecoItem item={precoDe} mercado={mercado} onClose={() => setPrecoDe(null)} />
       <EscolherMercado open={escolherMercado} atual={mercadoId} onClose={() => setEscolherMercado(false)}
         onPick={id => { setMercadoId(id); gravarMercado(id); setEscolherMercado(false) }} />
@@ -211,7 +225,7 @@ export function Lista() {
 function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, onComparar }: { item: Item; onMarcar: (i: Item, el: HTMLElement | null) => void; onEditar: () => void; onPreco: () => void; ofertas: Oferta[]; onComparar: () => void }) {
   const s = useStore()
   const ref = useRef<HTMLDivElement>(null)
-  const precos = latestByMarket(s.prices, item.name)
+  const precos = latestByMarket(s.prices, item.name, item.ean)
   const melhor = precos[0]
   const nomeMercado = (id: string | null) => s.markets.find(m => m.id === id)?.name ?? 'algum mercado'
   const quem = s.member(item.added_by)
@@ -396,26 +410,9 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
 
   const daNota = async (cnpj: string, key: string) => {
     setLendo(false); setChave(key)
-    const ja = s.markets.find(m => m.cnpj === cnpj)
-    if (ja) { setMercadoId(ja.id); s.toast(`Nota do ${ja.name}`); return }
-    let nome = `Mercado ${cnpj.slice(0, 8)}`, endereco: string | null = null
-    try {
-      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`)
-      if (r.ok) {
-        const j = await r.json()
-        nome = (j.nome_fantasia || j.razao_social || nome).replace(/\b(LTDA|S\.?A\.?|EIRELI|ME)\b\.?/gi, '').trim()
-        nome = nome.charAt(0) + nome.slice(1).toLowerCase().replace(/(^|\s)\S/g, (x: string) => x.toUpperCase())
-        endereco = [j.logradouro, j.numero, j.bairro, j.municipio].filter(Boolean).join(', ')
-      }
-    } catch { /* sem internet: fica com o nome provisório */ }
-    const igual = s.markets.find(m => norm(m.name) === norm(nome))
-    if (igual) {
-      await supabase.from('markets').update({ cnpj, address: endereco }).eq('id', igual.id)
-      setMercadoId(igual.id); s.toast(`Nota do ${igual.name}`); return
-    }
-    const { data, error } = await supabase.from('markets').insert({ name: nome, cnpj, address: endereco }).select().single()
-    if (error) return s.toast(say(error), 'erro')
-    s.patch('markets', m => [...m, data]); setMercadoId(data.id); s.toast(`Nota do ${data.name}`)
+    const m = await mercadoDoCnpj(s, cnpj)
+    if (!m) return s.toast('Não deu para identificar o mercado dessa nota.', 'erro')
+    setMercadoId(m.id); s.toast(`Nota do ${m.name}`)
   }
 
   const confirmar = async () => {

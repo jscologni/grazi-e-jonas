@@ -12,7 +12,7 @@ export interface Item {
   ean: string | null; product: string | null
 }
 export interface Trip { id: string; market_id: string | null; total: number; items_count: number; created_by: string | null; created_at: string }
-export interface Price { id: string; market_id: string | null; name: string; norm: string; unit: string; unit_price: number; seen_at: string }
+export interface Price { id: string; market_id: string | null; name: string; norm: string; unit: string; unit_price: number; seen_at: string; ean?: string | null }
 export interface Pantry { id: string; name: string; section: string; status: PantryStatus; updated_by: string | null; updated_at: string }
 export interface Chore {
   id: string; name: string; emoji: string; every_days: number; rotate: boolean

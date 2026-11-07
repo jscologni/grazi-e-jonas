@@ -44,11 +44,12 @@ export function goalProgress(goal: Goal, moves: GoalMove[]) {
 }
 
 /** Preço mais recente que vocês viram de um produto em cada mercado */
-export function latestByMarket(prices: Price[], name: string) {
+export function latestByMarket(prices: Price[], name: string, ean?: string | null) {
   const key = norm(name)
   if (!key) return []
   const tokens = key.split(' ')
   const hits = prices.filter(p => {
+    if (ean && p.ean === ean) return true
     if (p.norm === key) return true
     const pt = p.norm.split(' ')
     return tokens.every(t => pt.includes(t)) || pt.every(t => tokens.includes(t))

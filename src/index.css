@@ -59,6 +59,7 @@ body {
   overscroll-behavior-y: none;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
+input[type="checkbox"] { accent-color: var(--folha); }
 button { cursor: pointer; border: 0; background: none; padding: 0; }
 :focus-visible { outline: 3px solid var(--abobora); outline-offset: 2px; border-radius: 8px; }
 .num { font-variant-numeric: tabular-nums; }
@@ -149,6 +150,17 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .item-riscado .nome { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--tinta-suave); }
 .dica-preco { font-size: 12.5px; font-weight: 650; color: var(--folha); }
 .dica-preco.cara { color: var(--abobora); }
+.passos { list-style: none; counter-reset: passo; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
+.passos > li { counter-increment: passo; position: relative; padding: 14px 14px 14px 56px; border-radius: var(--raio-m); background: var(--chao); opacity: 0.55; }
+.passos > li.atual { opacity: 1; background: var(--papel); box-shadow: inset 0 0 0 2px var(--tinta); }
+.passos > li.feito { opacity: 1; }
+.passos > li::before { content: counter(passo); position: absolute; left: 14px; top: 12px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); background: var(--tinta); color: var(--chao); }
+.passos > li.feito::before { content: '✓'; background: var(--folha); color: var(--sobre-folha); font-family: var(--texto); font-weight: 800; }
+.passos > li > b { display: block; font-size: 17px; margin: 3px 0 6px; }
+.passos p { margin: 0 0 10px; }
+.passos ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14.5px; }
+.passos .btn { margin-top: 2px; }
+.aviso { background: var(--abobora-claro); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 10px 0 0; }
 .lupa { width: 36px; height: 36px; border-radius: 50%; background: var(--chao); font-size: 16px; flex: none; display: grid; place-items: center; }
 .produto { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border-top: 1px solid var(--linha); }
 .produto:first-child { border-top: 0; }

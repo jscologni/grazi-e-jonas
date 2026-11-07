@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "publicar": "npm run build && gh-pages -d dist -t -m \"Publicar\""
+    "publicar": "npm run build && gh-pages -d dist -t -m \"Publicar\"",
+    "test": "node tests/nota.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

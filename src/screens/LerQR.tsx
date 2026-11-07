@@ -9,7 +9,7 @@ export function chaveDoQR(texto: string) {
   return { chave: p, cnpj: p.slice(6, 20), uf: p.slice(0, 2) }
 }
 
-export function LerQR({ onClose, onNota }: { onClose: () => void; onNota: (cnpj: string, chave: string) => void }) {
+export function LerQR({ onClose, onNota }: { onClose: () => void; onNota: (cnpj: string, chave: string, conteudo?: string) => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const [erro, setErro] = useState('')
   const cb = useRef(onNota)
@@ -20,7 +20,7 @@ export function LerQR({ onClose, onNota }: { onClose: () => void; onNota: (cnpj:
     const scanner = new QrScanner(video.current, r => {
       if (feito) return
       const n = chaveDoQR(r.data)
-      if (n) { feito = true; scanner.stop(); cb.current(n.cnpj, n.chave) }
+      if (n) { feito = true; scanner.stop(); cb.current(n.cnpj, n.chave, r.data) }
       else setErro('Esse QR não é de nota fiscal. Procure o QR no rodapé do cupom.')
     }, { returnDetailedScanResult: true, preferredCamera: 'environment', highlightScanRegion: true, maxScansPerSecond: 8 })
     scanner.start().catch(() => setErro('Não deu para abrir a câmera. Permita o acesso à câmera nas configurações do navegador.'))
