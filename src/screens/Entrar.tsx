@@ -39,20 +39,20 @@ export function Login() {
     try {
       if (modo === 'link') {
         const { error } = await supabase.auth.signInWithOtp({
-          email: email.trim(), options: { emailRedirectTo: BASE() },
+          email: email.trim().toLowerCase(), options: { emailRedirectTo: BASE() },
         })
         if (error) throw error
         setEnviado('link')
       } else if (modo === 'esqueci') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: BASE() })
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: BASE() })
         if (error) throw error
         setEnviado('senha')
       } else if (modo === 'senha') {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha })
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha })
         if (error) throw error.message.includes('Invalid login') ? new Error('E-mail ou senha não conferem.') : error
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(), password: senha, options: { emailRedirectTo: BASE() },
+          email: email.trim().toLowerCase(), password: senha, options: { emailRedirectTo: BASE() },
         })
         if (error) throw error
         if (!data.session) setEnviado('confirmar')
@@ -89,7 +89,7 @@ export function Login() {
           <form onSubmit={enviar}>
             <label className="campo">
               <span>Seu e-mail</span>
-              <input className="entrada" type="email" required autoComplete="email" inputMode="email"
+              <input className="entrada" type="email" required autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@email.com" />
             </label>
             {iphoneInstalado() && modo === 'senha' && (
