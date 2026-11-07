@@ -8,15 +8,9 @@ import { Casa as CriarCasa, Login } from './screens/Entrar'
 import { Inicio } from './screens/Inicio'
 import { Lancar } from './screens/Lancar'
 import { Lista } from './screens/Lista'
+import { ABAS, Menu, type Aba } from './Menu'
 import { Toasts } from './ui'
 
-type Aba = 'inicio' | 'lista' | 'dinheiro' | 'casa'
-const ABAS: { id: Aba; nome: string; ico: string }[] = [
-  { id: 'inicio', nome: 'Início', ico: '🏡' },
-  { id: 'lista', nome: 'Feira', ico: '🛍️' },
-  { id: 'dinheiro', nome: 'Dinheiro', ico: '🪙' },
-  { id: 'casa', nome: 'Casa', ico: '🥫' },
-]
 const lerAba = (): Aba => {
   const h = location.hash.replace('#', '') as Aba
   return ABAS.some(a => a.id === h) ? h : 'inicio'
@@ -58,15 +52,7 @@ export default function App() {
       )}
       <Lancar open={lancar} onClose={() => setLancar(false)} />
 
-      <nav className="barra" aria-label="Seções">
-        {ABAS.map(a => (
-          <button key={a.id} aria-current={aba === a.id ? 'page' : undefined} onClick={() => ir(a.id)}>
-            <span className="ico" aria-hidden {...(a.id === 'lista' ? { 'data-sacola': true } : {})}>{a.ico}</span>
-            {a.nome}
-            {a.id === 'lista' && faltam > 0 && <span className="contador">{faltam}</span>}
-          </button>
-        ))}
-      </nav>
+      <Menu aba={aba} ir={ir} contador={faltam} />
       <Toasts />
     </div>
   )

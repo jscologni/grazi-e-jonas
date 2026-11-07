@@ -26,7 +26,7 @@
   --raio-p: 12px;
   --display: 'Bagel Fat One', 'Arial Rounded MT Bold', system-ui, sans-serif;
   --texto: 'Rethink Sans', system-ui, sans-serif;
-  --barra: 76px;
+  --barra: 82px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -208,20 +208,39 @@ textarea.entrada { padding: 14px 16px; min-height: 90px; resize: vertical; }
 .adicionar button[type="submit"] { width: 46px; height: 46px; border-radius: 15px; background: var(--tomate); color: #fff; font-size: 26px; font-weight: 700; flex: none; }
 .sugestoes { display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 0; scrollbar-width: none; }
 
-/* ---------------------------------------------------------------- barra inferior */
+/* ---------------------------------------------------------------- barra inferior: luminária que segue a aba */
 .barra {
-  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 520px; z-index: 20;
-  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px); background: color-mix(in srgb, var(--chao) 88%, transparent);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--linha);
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  --vidro: #2A1430; --apagado: rgba(245, 232, 210, 0.42); --acesa: #FFF1C2; --luz: 255, 214, 120;
+  position: fixed; z-index: 20; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 10px); width: calc(100% - 24px); max-width: 496px; height: 70px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--vidro); border-radius: 26px; border: 1px solid rgba(255, 241, 194, 0.09);
+  box-shadow: 0 16px 34px -14px rgba(29, 15, 33, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-.barra button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 16px; font-size: 12.5px; font-weight: 700; color: var(--tinta-suave); position: relative; }
-.barra button .ico { font-size: 24px; line-height: 1.1; filter: grayscale(0.6); transition: filter 0.2s; }
-.barra button[aria-current="page"] { color: var(--tinta); background: var(--papel); box-shadow: var(--sombra); }
-.barra button[aria-current="page"] .ico { filter: none; }
+.luz-trilho { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.luz { position: absolute; top: 0; bottom: 0; width: 25%; display: flex; justify-content: center; }
+.cone {
+  width: 96px; height: 100%; margin-top: 1px;
+  background: linear-gradient(to bottom, rgba(var(--luz), 0.55), rgba(var(--luz), 0.16) 62%, rgba(var(--luz), 0));
+  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%); filter: blur(1.5px);
+}
+.lampada { position: absolute; top: -3px; width: 25%; display: flex; justify-content: center; pointer-events: none; }
+.lampada span {
+  width: 40px; height: 5px; border-radius: 4px; background: var(--acesa);
+  box-shadow: 0 0 10px 2px rgba(var(--luz), 0.85), 0 0 28px 6px rgba(var(--luz), 0.35);
+}
+.barra button {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--apagado); font-size: 11.5px; font-weight: 700; transition: color 0.35s;
+}
+.barra button .ico { display: grid; place-items: center; transition: filter 0.35s, transform 0.35s; }
+.barra button[aria-current="page"] { color: var(--acesa); }
+.barra button[aria-current="page"] .ico { filter: drop-shadow(0 0 6px rgba(var(--luz), 0.75)); transform: translateY(1px); }
+.barra button:focus-visible { outline-offset: -6px; border-radius: 18px; }
 .barra .contador {
-  position: absolute; top: 0; right: calc(50% - 26px); min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
-  background: var(--tomate); color: #fff; font-size: 11.5px; font-weight: 800; display: grid; place-items: center;
+  position: absolute; top: 9px; right: calc(50% - 24px); min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
+  background: var(--tomate); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center;
+  box-shadow: 0 0 0 2px var(--vidro);
 }
 
 /* botão flutuante de lançar */
