@@ -277,7 +277,7 @@ function PrecoItem({ item, mercado, onClose }: { item: Item | null; mercado: Mar
         Preço de uma unidade{item && item.unit !== 'un' ? ` (por ${item.unit})` : ''}{mercado ? ` no ${mercado.name}` : ''}.
         {conhecido && <> Da última vez: <b>{money(conhecido.unit_price)}</b>.</>}
       </p>
-      <div className="visor sai"><Cartaz value={c.value} size="g" /></div>
+      <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
       <Teclado onKey={c.press} />
       <div className="acoes">
         <button className="btn fantasma" onClick={onClose}>Sem preço</button>
@@ -404,7 +404,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
       <p className="leve pequeno" style={{ margin: 0 }}>
         {riscados.length} {riscados.length === 1 ? 'item' : 'itens'}. Confira o total da nota; se for diferente, corrija.
       </p>
-      <div className="visor sai"><Cartaz value={c.value} size="g" /></div>
+      <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
       <Teclado onKey={c.press} />
 
       <div className="campo"><span>Mercado</span>

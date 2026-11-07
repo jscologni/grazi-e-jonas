@@ -7,8 +7,11 @@ import { useStore } from './lib/store'
 /** Valor no estilo cartaz de oferta: R$ pequeno, número gordo, centavos no alto sublinhados */
 export function Cartaz({ value, size = 'm', className = '' }: { value: number; size?: 'p' | 'm' | 'g' | 'xg'; className?: string }) {
   const { sign, int, cents } = moneyParts(value)
+  // largura do valor em "em": dígitos gordos + pontos + R$ e centavos. Usado para caber no espaço (cqi).
+  const digitos = int.replace(/\D/g, '').length + (sign ? 0.6 : 0)
+  const largura = digitos * 0.66 + (int.length - int.replace(/\D/g, '').length) * 0.3 + 1.35
   return (
-    <span className={`cartaz ${size} ${className}`} aria-label={`${value < 0 ? 'menos ' : ''}${int} reais e ${cents} centavos`}>
+    <span className={`cartaz ${size} ${className}`} style={{ ['--largura' as string]: largura }} aria-label={`${value < 0 ? 'menos ' : ''}${int} reais e ${cents} centavos`}>
       <span className="rs" aria-hidden>{sign}R$</span>
       <span className="int" aria-hidden>{int}</span>
       <span className="cents" aria-hidden>,{cents}</span>

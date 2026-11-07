@@ -43,7 +43,7 @@ const EMPTY: Data = {
   choreLog: [], categories: [], cards: [], bills: [], txs: [], goals: [], moves: [],
 }
 
-interface Ctx extends Data {
+export interface Ctx extends Data {
   session: Session | null
   me: Member | null
   ready: boolean          // sessão verificada
@@ -56,7 +56,7 @@ interface Ctx extends Data {
   toast: (msg: string, tone?: 'ok' | 'erro') => void
   toasts: { id: number; msg: string; tone: 'ok' | 'erro' }[]
 }
-const StoreCtx = createContext<Ctx | null>(null)
+export const StoreCtx = createContext<Ctx | null>(null)
 export const useStore = () => {
   const c = useContext(StoreCtx)
   if (!c) throw new Error('useStore fora do provider')

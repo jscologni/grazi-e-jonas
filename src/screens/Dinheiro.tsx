@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
 import { billsFor, goalProgress, summary, type BillState } from '../lib/finance'
 import { dayMonth, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
@@ -43,7 +43,7 @@ export function Etiqueta({ month, entrou, saiu, guardou, sobra }: { month: strin
     <motion.div className={`etiqueta ${sobra < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
       transition={{ type: 'spring', damping: 8, stiffness: 120 }}>
       <div className="rotulo">{sobra < 0 ? `Faltou em ${monthName(month)}` : `Sobra de ${monthName(month)}`}</div>
-      <Cartaz value={sobra} size="xg" />
+      <div className="cabe"><Cartaz value={sobra} size="xg" /></div>
       <div className="linhas">
         <span>entrou<b>{money(entrou)}</b></span>
         <span>saiu<b>{money(saiu)}</b></span>
@@ -153,8 +153,8 @@ function Contas({ month }: { month: string }) {
   return (
     <>
       <div className="grade2" style={{ marginTop: 18 }}>
-        <div className="bloco tomate"><div className="pequeno" style={{ fontWeight: 700 }}>Falta pagar</div><Cartaz value={falta} size="m" /></div>
-        <div className="bloco papel"><div className="pequeno" style={{ fontWeight: 700 }}>Total do mês</div><Cartaz value={total} size="m" /></div>
+        <div className="bloco tomate"><div className="pequeno" style={{ fontWeight: 700 }}>Falta pagar</div><div className="cabe"><Cartaz value={falta} size="m" /></div></div>
+        <div className="bloco papel"><div className="pequeno" style={{ fontWeight: 700 }}>Total do mês</div><div className="cabe"><Cartaz value={total} size="m" /></div></div>
       </div>
       <div className="secao"><h2 className="subtitulo">Vencimentos</h2>
         <button className="btn pequeno banana" onClick={() => setEditar('nova')}>+ Conta fixa</button></div>
@@ -222,7 +222,7 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
       ) : (
         <>
           <p className="leve pequeno" style={{ margin: 0 }}>{estado?.bill.variable ? 'Confira o valor da conta deste mês.' : 'Valor de sempre. Ajuste se veio diferente.'}</p>
-          <div className="visor sai"><Cartaz value={c.value} size="g" /></div>
+          <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
           <Teclado onKey={c.press} />
           <div className="campo"><span>Pago com</span>
             <div className="chips">{METHODS.filter(m => m.id !== 'credito').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => setMetodo(m.id as Method)}>{m.label}</button>)}</div>
@@ -313,7 +313,7 @@ function Cartoes({ month }: { month: string }) {
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div className="pequeno" style={{ opacity: 0.85 }}>fatura de {monthShort(month)} · {doMes.length} {doMes.length === 1 ? 'compra' : 'compras'}</div>
-                <Cartaz value={valor} size="g" />
+                <div className="cabe"><Cartaz value={valor} size="g" /></div>
                 {k.limit_amount ? (
                   <div style={{ marginTop: 8 }}>
                     <div className="barrinha"><i style={{ width: `${Math.min(100, (usado / +k.limit_amount) * 100)}%` }} /></div>
@@ -391,14 +391,17 @@ function EditarCartao({ cartao, onClose }: { cartao: Card | 'novo' | null; onClo
 /* ------------------------------------------------------------------ caixinhas */
 const COR_POTE: Record<string, string> = { abobora: 'var(--abobora)', folha: 'var(--folha)', tomate: 'var(--tomate)', uva: 'var(--uva)', banana: 'var(--banana)', melancia: 'var(--melancia)' }
 function Pote({ pct, color }: { pct: number; color: string }) {
-  const h = 62 * pct
+  const clip = useId()
   return (
     <svg className="pote" viewBox="0 0 74 88" aria-hidden>
       <rect x="16" y="2" width="42" height="10" rx="4" fill="var(--tinta)" />
       <path d="M12 16h50a6 6 0 0 1 6 6v54a10 10 0 0 1-10 10H16A10 10 0 0 1 6 76V22a6 6 0 0 1 6-6z" fill="var(--chao)" stroke="var(--tinta)" strokeWidth="3" />
-      <clipPath id={`clip-${color}-${Math.round(pct * 100)}`}><path d="M12 18h50a4 4 0 0 1 4 4v54a8 8 0 0 1-8 8H16a8 8 0 0 1-8-8V22a4 4 0 0 1 4-4z" /></clipPath>
-      <motion.rect x="6" width="62" fill={COR_POTE[color] ?? 'var(--abobora)'} clipPath={`url(#clip-${color}-${Math.round(pct * 100)})`}
-        initial={{ y: 84, height: 0 }} animate={{ y: 84 - h, height: h }} transition={{ type: 'spring', damping: 14 }} />
+      <clipPath id={clip}><path d="M12 18h50a4 4 0 0 1 4 4v54a8 8 0 0 1-8 8H16a8 8 0 0 1-8-8V22a4 4 0 0 1 4-4z" /></clipPath>
+      <g clipPath={`url(#${clip})`}>
+        <motion.rect x="6" y="18" width="62" height="66" fill={COR_POTE[color] ?? 'var(--abobora)'}
+          style={{ originY: 1 }}
+          initial={{ scaleY: 0 }} animate={{ scaleY: Math.max(pct, pct > 0 ? 0.04 : 0) }} transition={{ type: 'spring', damping: 16, stiffness: 90 }} />
+      </g>
     </svg>
   )
 }
@@ -463,7 +466,7 @@ function MexerCaixinha({ goal, month, onClose }: { goal: Goal | null; month: str
         <button aria-pressed={!tirar} onClick={() => setTirar(false)}>Guardar</button>
         <button aria-pressed={tirar} onClick={() => setTirar(true)}>Tirar</button>
       </div>
-      <div className={`visor ${tirar ? 'sai' : 'entra'}`}><Cartaz value={c.value} size="g" /></div>
+      <div className={`visor ${tirar ? 'sai' : 'entra'} cabe`}><Cartaz value={c.value} size="g" /></div>
       <Teclado onKey={c.press} />
       <p className="pequeno leve">Conta no mês de {monthName(month)}{tirar ? ' e volta para a sobra.' : ' e sai da sobra.'}</p>
       <button className={`btn cheio ${tirar ? 'tomate' : 'folha'}`} onClick={salvar} disabled={c.value <= 0}>{tirar ? 'Tirar da caixinha' : 'Guardar na caixinha'}</button>

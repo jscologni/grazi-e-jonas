@@ -98,7 +98,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
           <button aria-pressed={kind === 'in'} onClick={() => { setKind('in'); setCat(null) }}>Ganhei</button>
         </div>
       )}
-      <div className={`visor ${kind === 'in' ? 'entra' : 'sai'}`}><Cartaz value={c.value} size="g" /></div>
+      <div className={`visor ${kind === 'in' ? 'entra' : 'sai'} cabe`}><Cartaz value={c.value} size="g" /></div>
       <Teclado onKey={c.press} />
 
       <label className="campo"><span>{kind === 'in' ? 'De onde veio' : 'Com o quê'}</span>
