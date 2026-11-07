@@ -1,6 +1,6 @@
 // Ponte de preços: busca nos sites (VTEX) do Angeloni, Bistek, Giassi e Atacadão.
 // O celular não pode chamar esses sites direto (sem CORS), então o app chama esta função.
-// Só responde para quem está logado no app (verificação de JWT ligada).
+// Só responde para quem está logado no app (conferido em logado(); a verificação JWT antiga fica desligada).
 //   { termo: "café pilão" }      -> produtos de cada mercado para escolher
 //   { eans: ["789...", ...] }    -> preço atual de cada código de barras em cada mercado
 
@@ -61,10 +61,25 @@ async function buscar(loja: typeof LOJAS[number], query: string): Promise<Oferta
   }
 }
 
+// confere se quem chama está logado no app (guarda o resultado por 10 min)
+const logados = new Map<string, number>()
+async function logado(auth: string) {
+  if (!auth.startsWith('Bearer ')) return false
+  const ate = logados.get(auth)
+  if (ate && ate > Date.now()) return true
+  const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+    headers: { Authorization: auth, apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '' },
+  }).catch(() => null)
+  if (!r?.ok) return false
+  logados.set(auth, Date.now() + 10 * 60 * 1000)
+  return true
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const resp = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
+  if (!(await logado(req.headers.get('Authorization') ?? ''))) return resp({ erro: 'Entre no app primeiro' }, 401)
   let body: { termo?: string; eans?: string[] }
   try { body = await req.json() } catch { return resp({ erro: 'Pedido inválido' }, 400) }
 
