@@ -1,12 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#EEF3E2"/>
-  <!-- etiqueta de preço -->
-  <g transform="rotate(-12 256 256)">
-    <path d="M150 140h232a24 24 0 0 1 24 24v184a24 24 0 0 1-24 24H150l-62-116z" fill="#FFD43B"/>
-    <circle cx="146" cy="256" r="20" fill="#EEF3E2"/>
-    <path d="M146 256 C 96 200, 70 150, 60 96" stroke="#3B1840" stroke-width="10" fill="none" stroke-linecap="round"/>
-    <text x="282" y="292" text-anchor="middle" font-family="'Bagel Fat One', 'Arial Black', sans-serif" font-size="112" fill="#3B1840">G&amp;J</text>
+  <rect width="512" height="512" rx="112" fill="#E2412B"/>
+  <g transform="translate(256 256) scale(.86) translate(-256 -256)">
+    <text x="256" y="318" text-anchor="middle" font-family="'Bagel Fat One', 'Arial Rounded MT Bold', sans-serif" font-size="200" fill="#FFF6EC" letter-spacing="-6">g&amp;j</text>
+    <path d="M352 140c10-34 40-54 76-52-8 34-38 56-76 52z" fill="#7CC46A"/>
+    <path d="M352 140c-6 14-10 26-12 40" stroke="#7CC46A" stroke-width="10" stroke-linecap="round"/>
   </g>
-  <circle cx="404" cy="400" r="54" fill="#E2412B"/>
-  <path d="M392 352c6-14 22-18 30-12-10 2-16 8-18 16z" fill="#3E8E2F"/>
 </svg>
