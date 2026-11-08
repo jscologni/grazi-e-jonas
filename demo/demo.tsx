@@ -104,6 +104,8 @@ const data: Data = {
     { kind: 'out', amount: 386.52, description: 'Mercado · Giassi', category_id: 'c-Mercado', member_id: G, occurred_on: ontem, method: 'debito' },
     { kind: 'out', amount: 89.9, description: 'Pizza de sexta', category_id: 'c-Comer fora', member_id: J, occurred_on: hoje },
     { kind: 'out', amount: 120, description: 'Gasolina', category_id: 'c-Transporte', member_id: G, occurred_on: hoje, method: 'credito', card_id: 'k1', installment: 1, installments: 1 },
+    { kind: 'out', amount: 249.9, description: 'Tênis', category_id: 'c-Lazer', member_id: J, occurred_on: ontem, method: 'credito', card_id: 'k1', group_id: 'g1', installment: 3, installments: 3, month: addMonths(mes, 1) },
+    { kind: 'out', amount: 100, description: 'Geladeira', category_id: 'c-Casa', member_id: J, occurred_on: ontem, method: 'credito', card_id: 'k1', group_id: 'g2', installment: 5, installments: 8, month: addMonths(mes, 1) },
     { kind: 'out', amount: 249.9, description: 'Tênis', category_id: 'c-Lazer', member_id: J, occurred_on: ontem, method: 'credito', card_id: 'k1', group_id: 'g1', installment: 2, installments: 3 },
   ].map(t => ({
     id: id(), method: 'pix', card_id: null, group_id: null, installment: null, installments: null, bill_id: null, trip_id: null,

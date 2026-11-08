@@ -162,6 +162,13 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .passos ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14.5px; }
 .passos .btn { margin-top: 2px; }
 .aviso { background: var(--abobora-claro); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 10px 0 0; }
+.venc { border-top: 1px solid var(--linha); }
+.venc:first-child { border-top: 0; }
+.venc summary { display: flex; align-items: center; gap: 10px; padding: 13px 14px; min-height: 58px; cursor: pointer; list-style: none; }
+.venc summary::-webkit-details-marker { display: none; }
+.venc summary::after { content: '›'; font-size: 22px; line-height: 1; color: var(--tinta-suave); transition: transform 0.15s; }
+.venc[open] summary::after { transform: rotate(90deg); }
+.venc .linha { background: var(--chao); }
 .lupa { width: 36px; height: 36px; border-radius: 50%; background: var(--chao); font-size: 16px; flex: none; display: grid; place-items: center; }
 .produto { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border-top: 1px solid var(--linha); }
 .produto:first-child { border-top: 0; }

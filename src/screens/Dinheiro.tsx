@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { useId, useMemo, useState } from 'react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
 import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, saldoVale, summary, type BillState } from '../lib/finance'
-import { dayMonth, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
+import { addMonths, dayMonth, dueDate, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Bill, Card, Goal, Method, Tx } from '../lib/types'
@@ -380,10 +380,11 @@ function Cartoes({ month }: { month: string }) {
                   </div>
                 </div>
               )}
-              <div className="campo"><span>Compras</span>
+              <div className="campo"><span>Compras desta fatura · vence {venceEm(fatura, month)}</span>
                 {doMes.length ? <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>{doMes.map(t => <LinhaTx key={t.id} t={t} onClick={() => setAberto(t)} />)}</div>
                   : <p className="leve" style={{ margin: 0 }}>Nenhuma compra nesta fatura.</p>}
               </div>
+              <ProximosVencimentos card={fatura} onAbrir={setAberto} />
               <button className="btn fantasma cheio" style={{ marginTop: 16 }} onClick={() => { setEditar(fatura); setFatura(null) }}>Editar cartão</button>
             </>
           )
@@ -394,6 +395,54 @@ function Cartoes({ month }: { month: string }) {
       <Lancar open={!!aberto} tx={aberto} onClose={() => setAberto(null)} />
       <EditarCartao cartao={editar} onClose={() => setEditar(null)} />
     </>
+  )
+}
+
+const venceEm = (card: Card, mes: string) => `${dueDate(mes, card.due_day).getDate()} ${monthShort(mes)}`
+
+/** Todas as faturas que ainda vão vencer, com as compras e parcelas de cada uma */
+function ProximosVencimentos({ card, onAbrir }: { card: Card; onAbrir: (t: Tx) => void }) {
+  const s = useStore()
+  const hoje = today()
+  const doCartao = s.txs.filter(t => t.card_id === card.id && t.kind === 'out')
+  const meses = [...new Set(doCartao.map(t => t.month))].filter(m => iso(dueDate(m, card.due_day)) >= hoje).sort()
+  if (!meses.length) return null
+  const total = meses.reduce((a, m) => a + invoice(card, m, s.txs, s.cardPays).falta, 0)
+  return (
+    <div className="campo">
+      <span>Próximos vencimentos · {money(total)}</span>
+      <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
+        {meses.map((m, i) => {
+          const f = invoice(card, m, s.txs, s.cardPays)
+          const compras = doCartao.filter(t => t.month === m).sort((a, b) => +b.amount - +a.amount)
+          return (
+            <details className="venc" key={m} open={i === 0}>
+              <summary>
+                <div className="meio">
+                  <div className="nome">Vence {venceEm(card, m)}</div>
+                  <div className="info">{compras.length} {compras.length === 1 ? 'compra' : 'compras'}{f.pago > 0 && f.falta > 0 ? ` · já pago ${money(f.pago)}` : ''}</div>
+                </div>
+                {f.falta === 0 ? <span className="status paga">✓ paga</span> : <span className="valor">{money(f.falta)}</span>}
+              </summary>
+              {compras.map(t => {
+                const n = t.installments ?? 1
+                return (
+                  <button className="linha" key={t.id} onClick={() => onAbrir(t)}>
+                    <div className="meio">
+                      <div className="nome" style={{ whiteSpace: 'normal' }}>{t.description}</div>
+                      <div className="info">
+                        {n > 1 ? `parcela ${t.installment}/${n}${t.installment !== n ? ` · última em ${monthShort(addMonths(m, n - (t.installment ?? 1)))}` : ' · última'}` : 'à vista'}
+                      </div>
+                    </div>
+                    <span className="valor">{money(+t.amount)}</span>
+                  </button>
+                )
+              })}
+            </details>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
