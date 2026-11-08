@@ -13,6 +13,7 @@ Funciona no navegador e pode ser instalado na tela inicial do celular (PWA).
   o mercado pelo CNPJ. "Onde sai mais barato" compara a lista atual entre os mercados.
 - **Dinheiro**: caixa único do casal. Entradas e gastos de cada um, contas fixas com vencimento, cartões com
   fechamento/vencimento e compras parceladas caindo na fatura certa, caixinhas (metas) e gasto por categoria.
+- **Extrato do banco**: em Dinheiro › Saldos ou no Início, importa OFX, CSV, PDF ou texto copiado; lança o que aconteceu no período e acerta o saldo inicial da conta para bater com o banco.
 - **Casa**: despensa (marcar "acabando" manda o item para a lista) e tarefas com rodízio e placar do mês.
 
 ## Como funciona por dentro
