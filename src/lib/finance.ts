@@ -106,6 +106,12 @@ export function accountBalance(acc: Account, txs: Tx[], pays: CardPayment[]) {
   return v
 }
 
+/** Soma do saldo de todas as contas ativas; null se ainda não há conta cadastrada */
+export function saldoContas(accounts: Account[], txs: Tx[], pays: CardPayment[]) {
+  const ativas = accounts.filter(a => !a.archived)
+  return ativas.length ? ativas.reduce((t, a) => t + accountBalance(a, txs, pays), 0) : null
+}
+
 /** Fatura de um cartão num mês: total das compras, quanto já foi pago e quanto falta */
 export function invoice(card: Card, month: string, txs: Tx[], pays: CardPayment[]) {
   const total = txs.filter(t => t.card_id === card.id && t.month === month && t.kind === 'out').reduce((a, t) => a + +t.amount, 0)

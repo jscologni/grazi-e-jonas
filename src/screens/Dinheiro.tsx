@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { useId, useMemo, useState } from 'react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
-import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, summary, type BillState } from '../lib/finance'
+import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, summary, type BillState } from '../lib/finance'
 import { dayMonth, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -23,7 +23,7 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
         <MesNav month={month} onChange={setMonth} />
       </div>
 
-      <Etiqueta month={month} {...res} />
+      <Etiqueta month={month} {...res} saldo={month === monthOf(new Date()) ? saldoContas(s.accounts, s.txs, s.cardPays) : null} />
 
       <div className="abas" role="tablist">
         {([['mes', 'Lançamentos'], ['saldos', 'Saldos'], ['contas', 'Contas fixas'], ['cartoes', 'Cartões'], ['caixinhas', 'Caixinhas']] as [Aba, string][]).map(([id, n]) => (
@@ -40,16 +40,19 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
   )
 }
 
-export function Etiqueta({ month, entrou, saiu, guardou, sobra }: { month: string; entrou: number; saiu: number; guardou: number; sobra: number }) {
+/** No mês atual mostra o dinheiro que está nas contas; em outros meses, a sobra daquele mês */
+export function Etiqueta({ month, entrou, saiu, guardou, sobra, saldo = null }: { month: string; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null }) {
+  const valor = saldo ?? sobra
   return (
-    <motion.div className={`etiqueta ${sobra < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
+    <motion.div className={`etiqueta ${valor < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
       transition={{ type: 'spring', damping: 8, stiffness: 120 }}>
-      <div className="rotulo">{sobra < 0 ? `Faltou em ${monthName(month)}` : `Sobra de ${monthName(month)}`}</div>
-      <div className="cabe"><Cartaz value={sobra} size="xg" /></div>
+      <div className="rotulo">{saldo != null ? 'Saldo nas contas' : sobra < 0 ? `Faltou em ${monthName(month)}` : `Sobra de ${monthName(month)}`}</div>
+      <div className="cabe"><Cartaz value={valor} size="xg" /></div>
       <div className="linhas">
-        <span>entrou<b>{money(entrou)}</b></span>
-        <span>saiu<b>{money(saiu)}</b></span>
+        <span>entrou no mês<b>{money(entrou)}</b></span>
+        <span>saiu no mês<b>{money(saiu)}</b></span>
         {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
+        {saldo != null && <span>sobra do mês<b>{money(sobra)}</b></span>}
       </div>
     </motion.div>
   )

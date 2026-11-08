@@ -55,12 +55,12 @@ export function Inicio({ ir }: { ir: Ir }) {
       </div>
 
       <button style={{ display: 'block', width: '100%', textAlign: 'left' }} onClick={() => ir('dinheiro')} aria-label="Ver o dinheiro do mês">
-        <Etiqueta month={mes} {...res} />
+        <Etiqueta month={mes} {...res} saldo={bancos.length ? nasContas : null} />
       </button>
-      {bancos.length > 0 && (
+      {bancos.length > 0 && faturas > 0 && (
         <button className="bloco papel" onClick={() => ir('dinheiro')} style={{ display: 'flex', gap: 14, width: '100%', marginTop: 16, textAlign: 'left', padding: '14px 18px' }}>
-          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Nas contas</div><div className="num" style={{ fontWeight: 800, fontSize: 18 }}>{money(nasContas)}</div></div>
-          {faturas > 0 && <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Faturas a pagar</div><div className="num" style={{ fontWeight: 800, fontSize: 18, color: 'var(--tomate)' }}>{money(faturas)}</div></div>}
+          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Faturas a pagar</div><div className="num" style={{ fontWeight: 800, fontSize: 18, color: 'var(--tomate)' }}>{money(faturas)}</div></div>
+          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Livre depois delas</div><div className="num" style={{ fontWeight: 800, fontSize: 18 }}>{money(nasContas - faturas)}</div></div>
         </button>
       )}
 
