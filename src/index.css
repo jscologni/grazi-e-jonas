@@ -169,6 +169,9 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .venc summary::after { content: '›'; font-size: 22px; line-height: 1; color: var(--tinta-suave); transition: transform 0.15s; }
 .venc[open] summary::after { transform: rotate(90deg); }
 .venc .linha { background: var(--chao); }
+.venc summary .meio { flex: 1; min-width: 0; }
+.venc summary .nome { font-weight: 700; }
+.venc summary .info { font-size: 13px; color: var(--tinta-suave); }
 .lupa { width: 36px; height: 36px; border-radius: 50%; background: var(--chao); font-size: 16px; flex: none; display: grid; place-items: center; }
 .produto { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border-top: 1px solid var(--linha); }
 .produto:first-child { border-top: 0; }
