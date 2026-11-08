@@ -21,7 +21,7 @@ export function Inicio({ ir }: { ir: Ir }) {
   const [ajustes, setAjustes] = useState(false)
   const [extrato, setExtrato] = useState(false)
   const mes = monthOf(new Date())
-  const res = summary(mes, s.txs, s.moves)
+  const res = summary(mes, s.txs, s.moves, s.accounts)
   // inclui as que vencem no começo do mês seguinte
   const contas = [...billsFor(mes, s.bills, s.txs), ...billsFor(addMonths(mes, 1), s.bills, s.txs)].filter(b => !b.paid && b.days <= 7)
   const faltam = s.items.filter(i => !i.checked)

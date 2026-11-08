@@ -15,7 +15,7 @@ type Aba = 'mes' | 'saldos' | 'contas' | 'cartoes' | 'caixinhas'
 export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
   const s = useStore()
   const [aba, setAba] = useState<Aba>('mes')
-  const res = summary(month, s.txs, s.moves)
+  const res = summary(month, s.txs, s.moves, s.accounts)
   return (
     <div className="page">
       <div className="topo" style={{ alignItems: 'center' }}>
@@ -41,7 +41,7 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
 }
 
 /** No mês atual mostra o dinheiro que está nas contas; em outros meses, a sobra daquele mês */
-export function Etiqueta({ month, entrou, saiu, guardou, sobra, saldo = null }: { month: string; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null }) {
+export function Etiqueta({ month, inicial = 0, entrou, saiu, guardou, sobra, saldo = null }: { month: string; inicial?: number; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null }) {
   const valor = saldo ?? sobra
   return (
     <motion.div className={`etiqueta ${valor < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
@@ -49,6 +49,7 @@ export function Etiqueta({ month, entrou, saiu, guardou, sobra, saldo = null }: 
       <div className="rotulo">{saldo != null ? 'Saldo nas contas' : sobra < 0 ? `Faltou em ${monthName(month)}` : `Sobra de ${monthName(month)}`}</div>
       <div className="cabe"><Cartaz value={valor} size="xg" /></div>
       <div className="linhas">
+        {inicial !== 0 && <span>saldo inicial<b>{money(inicial)}</b></span>}
         <span>entrou no mês<b>{money(entrou)}</b></span>
         <span>saiu no mês<b>{money(saiu)}</b></span>
         {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
