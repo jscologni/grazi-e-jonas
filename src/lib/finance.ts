@@ -43,6 +43,16 @@ export function goalProgress(goal: Goal, moves: GoalMove[]) {
   return { saved, left, pct: Math.min(1, saved / goal.target), perMonth }
 }
 
+// palavras que transformam um produto em outro: "leite" não é "leite condensado", "pão" não é "pão de queijo"
+const VIRA_OUTRO = new Set(['condensado', 'coco', 'soja', 'po', 'em', 'de', 'doce', 'soluvel', 'creme', 'molho', 'extrato', 'caldo', 'zero', 'diet', 'light'])
+
+/** O item da lista ("café") é esse produto ("Cafe Pilao Trad")? */
+export function mesmoProduto(item: string[], produto: string[]) {
+  if (!item.length || item[0] !== produto[0]) return false
+  if (!item.every(t => produto.includes(t))) return false
+  return !produto.some(t => !item.includes(t) && VIRA_OUTRO.has(t))
+}
+
 /** Preço mais recente que vocês viram de um produto em cada mercado */
 export function latestByMarket(prices: Price[], name: string, ean?: string | null) {
   const key = norm(name)
@@ -51,8 +61,7 @@ export function latestByMarket(prices: Price[], name: string, ean?: string | nul
   const hits = prices.filter(p => {
     if (ean && p.ean === ean) return true
     if (p.norm === key) return true
-    const pt = p.norm.split(' ')
-    return tokens.every(t => pt.includes(t)) || pt.every(t => tokens.includes(t))
+    return mesmoProduto(tokens, p.norm.split(' '))
   })
   const byMarket = new Map<string, Price>()
   for (const p of hits) {
@@ -64,10 +73,10 @@ export function latestByMarket(prices: Price[], name: string, ean?: string | nul
 }
 
 /** Para a lista atual: quanto ficaria em cada mercado, com quantos itens conhecidos */
-export function basketByMarket(items: { name: string; qty: number }[], prices: Price[], markets: Market[]) {
+export function basketByMarket(items: { name: string; qty: number; ean?: string | null }[], prices: Price[], markets: Market[]) {
   const rows = markets.map(m => ({ market: m, total: 0, known: 0 }))
   for (const it of items) {
-    for (const p of latestByMarket(prices, it.name)) {
+    for (const p of latestByMarket(prices, it.name, it.ean)) {
       const r = rows.find(r => r.market.id === p.market_id)
       if (r) { r.total += p.unit_price * (it.qty || 1); r.known++ }
     }

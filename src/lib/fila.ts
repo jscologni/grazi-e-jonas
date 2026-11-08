@@ -45,21 +45,23 @@ export async function gravarOuGuardar(op: Op): Promise<{ erro: string | null; na
 }
 
 let enviando: Promise<number> | null = null
-/** Envia a fila em ordem. Para no primeiro erro de rede; descarta o que o banco recusar de vez. */
+/** Envia a fila em ordem. Para no primeiro erro de rede; o que o banco recusar de vez sai da fila e o app avisa. */
 export function enviarFila(): Promise<number> {
   if (enviando) return enviando
   enviando = (async () => {
     let enviados = 0
+    let recusadas = 0
     while (navigator.onLine) {
       const fila = ler()
       if (!fila.length) break
       try {
         const { error } = await executar(fila[0])
         if (error && temporario(error.message)) break
+        if (error) recusadas++; else enviados++
       } catch { break }
       gravar(ler().slice(1))
-      enviados++
     }
+    if (recusadas) window.dispatchEvent(new CustomEvent('fila-recusada', { detail: recusadas }))
     return enviados
   })().finally(() => { enviando = null })
   return enviando

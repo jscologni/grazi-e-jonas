@@ -5,8 +5,8 @@ import { basketByMarket, contaPadrao, invoiceMonth, latestByMarket } from '../li
 import { ago, money, monthOf, norm, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
-import { gravarOuGuardar } from '../lib/fila'
-import type { Item, Market, Method } from '../lib/types'
+import { enviarFila, gravarOuGuardar, tamanhoFila } from '../lib/fila'
+import type { Item, Market, Method, Price } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
 import { EscolherConta } from './Saldos'
 import { Comparar } from './Comparar'
@@ -34,8 +34,9 @@ export function Lista() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const mercado = s.markets.find(m => m.id === mercadoId) ?? null
-  const abertos = s.items.filter(i => !i.checked)
-  const riscados = s.items.filter(i => i.checked)
+  const abertos = useMemo(() => s.items.filter(i => !i.checked), [s.items])
+  const riscados = useMemo(() => s.items.filter(i => i.checked), [s.items])
+  const precosDoItem = useMemo(() => new Map(s.items.map(i => [i.id, latestByMarket(s.prices, i.name, i.ean)])), [s.items, s.prices])
   const noCarrinho = riscados.reduce((t, i) => t + (i.price ?? 0) * i.qty, 0)
 
   const eans = [...new Set(abertos.map(i => i.ean).filter(Boolean) as string[])].sort().join(',')
@@ -61,14 +62,17 @@ export function Lista() {
   })).filter(g => g.itens.length), [s.items])
 
   // sugestões: o que vocês já compraram e não está na lista
-  const sugestoes = useMemo(() => {
-    const q = norm(texto)
+  const conhecidos = useMemo(() => {
     const naLista = new Set(s.items.map(i => norm(i.name)))
     const nomes = new Map<string, string>()
     for (const p of s.prices) if (!naLista.has(p.norm)) nomes.set(p.norm, p.name)
     for (const p of s.pantry) if (!naLista.has(norm(p.name))) nomes.set(norm(p.name), p.name)
-    return [...nomes.entries()].filter(([n]) => q.length >= 2 && n.includes(q)).slice(0, 8).map(([, nome]) => nome)
-  }, [texto, s.items, s.prices, s.pantry])
+    return [...nomes.entries()]
+  }, [s.items, s.prices, s.pantry])
+  const sugestoes = useMemo(() => {
+    const q = norm(texto)
+    return q.length < 2 ? [] : conhecidos.filter(([n]) => n.includes(q)).slice(0, 8).map(([, nome]) => nome)
+  }, [texto, conhecidos])
 
   const adicionar = async (raw: string) => {
     const nomes = raw.split(/[,;\n]/).map(t => t.trim()).filter(Boolean)
@@ -91,7 +95,7 @@ export function Lista() {
     const checked = !item.checked
     if (checked) voarParaSacola(el, item.name)
     if (checked && mercado) setPrecoDe(item)
-    s.patch('items', it => it.map(i => i.id === item.id ? { ...i, checked, checked_by: checked ? s.me?.user_id ?? null : null } : i))
+    s.patch('items', it => it.map(i => i.id === item.id ? { ...i, checked, checked_by: checked ? s.me?.user_id ?? null : null, price: checked ? i.price : null } : i))
     const { erro } = await gravarOuGuardar({ tipo: 'update', tabela: 'shopping_items', id: item.id, valores: {
       checked, checked_by: checked ? s.me?.user_id : null, checked_at: checked ? new Date().toISOString() : null, ...(checked ? {} : { price: null }),
     } })
@@ -153,7 +157,7 @@ export function Lista() {
             <AnimatePresence initial={false}>
               {itens.map(item => (
                 <LinhaItem key={item.id} item={item} onMarcar={marcar} onEditar={() => setEditando(item)} onPreco={() => setPrecoDe(item)}
-                  ofertas={ofertasDe(item.ean)} onComparar={() => setComparar(item)} />
+                  ofertas={ofertasDe(item.ean)} precos={precosDoItem.get(item.id) ?? []} onComparar={() => setComparar(item)} />
               ))}
             </AnimatePresence>
           </div>
@@ -222,10 +226,9 @@ export function Lista() {
   )
 }
 
-function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, onComparar }: { item: Item; onMarcar: (i: Item, el: HTMLElement | null) => void; onEditar: () => void; onPreco: () => void; ofertas: Oferta[]; onComparar: () => void }) {
+function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, precos, onComparar }: { item: Item; onMarcar: (i: Item, el: HTMLElement | null) => void; onEditar: () => void; onPreco: () => void; ofertas: Oferta[]; precos: Price[]; onComparar: () => void }) {
   const s = useStore()
   const ref = useRef<HTMLDivElement>(null)
-  const precos = latestByMarket(s.prices, item.name, item.ean)
   const melhor = precos[0]
   const nomeMercado = (id: string | null) => s.markets.find(m => m.id === id)?.name ?? 'algum mercado'
   const quem = s.member(item.added_by)
@@ -276,7 +279,7 @@ function EditarItem({ item, onClose, onComparar }: { item: Item | null; onClose:
     const { erro } = await gravarOuGuardar({ tipo: 'delete', tabela: 'shopping_items', ids: [form.id] })
     if (erro) s.toast(say({ message: erro }), 'erro'); else s.toast(`${form.name} saiu da lista`)
   }
-  const historico = form ? latestByMarket(s.prices, form.name) : []
+  const historico = form ? latestByMarket(s.prices, form.name, form.ean) : []
   return (
     <Sheet open={!!item} onClose={onClose} title="Editar item">
       {form && (
@@ -332,7 +335,7 @@ function PrecoItem({ item, mercado, onClose }: { item: Item | null; mercado: Mar
   const c = useCents(0)
   const [ultimo, setUltimo] = useState<string | null>(null)
   if (item && ultimo !== item.id) { setUltimo(item.id); c.set(item.price ?? 0) }
-  const conhecido = item && mercado ? latestByMarket(s.prices, item.name).find(p => p.market_id === mercado.id) : undefined
+  const conhecido = item && mercado ? latestByMarket(s.prices, item.name, item.ean).find(p => p.market_id === mercado.id) : undefined
   const salvar = async () => {
     if (!item) return
     onClose()
@@ -402,7 +405,8 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
   const [chave, setChave] = useState<string | null>(null)
   const [lendo, setLendo] = useState(false)
   const [busy, setBusy] = useState(false)
-  if (open && !aberto) { setAberto(true); c.set(soma); setMercadoId(mercado?.id ?? null); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setChave(null) }
+  const [tripId, setTripId] = useState('') // mesmo código ao tentar de novo: não duplica a compra
+  if (open && !aberto) { setAberto(true); setTripId(crypto.randomUUID()); c.set(soma); setMercadoId(mercado?.id ?? null); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setChave(null) }
   if (!open && aberto) setAberto(false)
 
   const cards = s.cards.filter(k => !k.archived)
@@ -420,34 +424,29 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
     if (!navigator.onLine) return s.toast('Para fechar a compra precisa de internet. Os itens continuam no carrinho.', 'erro')
     setBusy(true)
     try {
+      // o que ficou guardado sem internet vai antes, para a compra ver a lista completa
+      await enviarFila()
+      if (tamanhoFila() > 0) throw new Error('Failed to fetch')
       const total = c.value
-      const { data: trip, error: e1 } = await supabase.from('trips').insert({
-        market_id: mercadoId, total, items_count: riscados.length, access_key: chave,
-      }).select().single()
-      if (e1) throw e1
+      const card = cards.find(k => k.id === cartao)
+      const mercadoCat = s.categories.find(k => k.kind === 'out' && norm(k.name) === 'mercado')
       const precos = riscados.filter(i => i.price != null && i.price > 0).map(i => ({
-        market_id: mercadoId, trip_id: trip.id, name: i.name, norm: norm(i.name), unit: i.unit, unit_price: i.price,
+        name: i.name, norm: norm(i.name), unit: i.unit, unit_price: i.price, ean: i.ean,
       }))
-      if (precos.length) { const { error } = await supabase.from('prices').insert(precos); if (error) throw error }
-      if (lancar && total > 0) {
-        const mercadoCat = s.categories.find(k => k.kind === 'out' && norm(k.name) === 'mercado')
-        const card = cards.find(k => k.id === cartao)
-        const { data: tx, error } = await supabase.from('transactions').insert({
-          kind: 'out', amount: total, description: mercadoEscolhido ? `Mercado · ${mercadoEscolhido.name}` : 'Mercado',
+      const ids = riscados.map(i => i.id)
+      const { error } = await supabase.rpc('guardar_compra', {
+        p_trip: tripId, p_market: mercadoId, p_total: total, p_itens: riscados.length, p_chave: chave ?? '',
+        p_precos: precos, p_apagar: ids,
+        p_tx: lancar && total > 0 ? {
+          amount: total, description: mercadoEscolhido ? `Mercado · ${mercadoEscolhido.name}` : 'Mercado',
           category_id: mercadoCat?.id ?? null, member_id: quem, occurred_on: today(), method: metodo,
           card_id: metodo === 'credito' ? card?.id ?? null : null,
           month: metodo === 'credito' && card ? invoiceMonth(today(), card) : monthOf(new Date()),
-          installment: metodo === 'credito' ? 1 : null, installments: metodo === 'credito' ? 1 : null, trip_id: trip.id,
+          installment: metodo === 'credito' ? 1 : null, installments: metodo === 'credito' ? 1 : null,
           account_id: metodo === 'credito' ? null : conta,
-        }).select().single()
-        if (error) throw error
-        await supabase.from('trips').update({ transaction_id: tx.id }).eq('id', trip.id)
-      }
-      const despensa = riscados.map(i => i.pantry_id).filter(Boolean) as string[]
-      if (despensa.length) await supabase.from('pantry').update({ status: 'cheio', updated_at: new Date().toISOString() }).in('id', despensa)
-      const ids = riscados.map(i => i.id)
-      const { error: e3 } = await supabase.from('shopping_items').delete().in('id', ids)
-      if (e3) throw e3
+        } : null,
+      })
+      if (error) throw error
       s.patch('items', it => it.filter(i => !ids.includes(i.id)))
       s.toast(lancar && total > 0 ? `Compra fechada: ${money(total)} lançado` : 'Compra fechada')
       await s.reload()

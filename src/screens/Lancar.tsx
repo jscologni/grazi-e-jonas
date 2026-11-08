@@ -55,7 +55,10 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
       if (editando && tx) {
         const { error } = await supabase.from('transactions').update({
           ...base, amount: c.value,
-          month: base.card_id && card ? (parcelado ? tx.month : invoiceMonth(data, card)) : (tx.bill_id ? tx.month : monthOf(data)),
+          // só recalcula a fatura se a compra mudou de dia ou de cartão ("valor de antes do app" fica onde foi posto)
+          month: base.card_id && card
+            ? (parcelado || (tx.occurred_on === data && tx.card_id === base.card_id) ? tx.month : invoiceMonth(data, card))
+            : (tx.bill_id ? tx.month : monthOf(data)),
         }).eq('id', tx.id)
         if (error) throw error
         s.toast('Lançamento atualizado')

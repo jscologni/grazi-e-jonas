@@ -30,9 +30,11 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
   const [marcados, setMarcados] = useState<Set<number>>(new Set())
   const [jaGuardada, setJaGuardada] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [tripId, setTripId] = useState('') // tentar de novo não duplica a nota
 
   if (open && !aberto) {
     setAberto(true)
+    setTripId(crypto.randomUUID())
     const p = lerPendente()
     setPend(p); setTexto(''); setJaGuardada(null)
     setCamera(!p) // sem nota esperando: já abre a câmera
@@ -76,17 +78,13 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
         const m = await mercadoDoCnpj(s, nota.cnpj, nota.mercado)
         mercadoId = m?.id ?? null; mercadoNome = m?.name ?? null
       }
-      const { data: trip, error: e1 } = await supabase.from('trips').insert({
-        market_id: mercadoId, total: nota.total ?? itens.reduce((a, i) => a + i.total, 0),
-        items_count: itens.length, access_key: pend?.chave || null,
-      }).select().single()
-      if (e1) throw e1
       const quando = nota.data ? `${nota.data}T12:00:00` : new Date().toISOString()
-      const { error: e2 } = await supabase.from('prices').insert(itens.map((it: ItemNota) => ({
-        market_id: mercadoId, trip_id: trip.id, name: it.nome, norm: norm(it.nome), unit: it.un,
-        unit_price: it.unit, ean: it.ean, seen_at: quando,
-      })))
-      if (e2) throw e2
+      const { error } = await supabase.rpc('guardar_compra', {
+        p_trip: tripId, p_market: mercadoId, p_total: nota.total ?? itens.reduce((a, i) => a + i.total, 0),
+        p_itens: itens.length, p_chave: pend?.chave ?? '', p_tx: null, p_apagar: [],
+        p_precos: itens.map((it: ItemNota) => ({ name: it.nome, norm: norm(it.nome), unit: it.un, unit_price: it.unit, ean: it.ean, seen_at: quando })),
+      })
+      if (error) throw error
       gravarPendente(null)
       s.toast(`${itens.length} ${itens.length === 1 ? 'preço guardado' : 'preços guardados'}${mercadoNome ? ` do ${mercadoNome}` : ''}`)
       await s.reload()

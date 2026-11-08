@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
 import { accountBalance, billsFor, choreStatus, faturasAPagar, summary } from '../lib/finance'
-import { ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/format'
+import { addMonths, ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Sheet } from '../ui'
 import { Escolher, NovaSenha } from './Entrar'
 import { Etiqueta } from './Dinheiro'
+import { ImportarExtrato } from './Extrato'
 
 type Ir = (aba: 'lista' | 'dinheiro' | 'casa') => void
 
@@ -18,9 +19,11 @@ const saudacao = () => {
 export function Inicio({ ir }: { ir: Ir }) {
   const s = useStore()
   const [ajustes, setAjustes] = useState(false)
+  const [extrato, setExtrato] = useState(false)
   const mes = monthOf(new Date())
   const res = summary(mes, s.txs, s.moves)
-  const contas = billsFor(mes, s.bills, s.txs).filter(b => !b.paid && b.days <= 7)
+  // inclui as que vencem no começo do mês seguinte
+  const contas = [...billsFor(mes, s.bills, s.txs), ...billsFor(addMonths(mes, 1), s.bills, s.txs)].filter(b => !b.paid && b.days <= 7)
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
@@ -61,6 +64,10 @@ export function Inicio({ ir }: { ir: Ir }) {
         </button>
       )}
 
+      {!s.txs.some(t => t.import_id && t.month === mes) && (
+        <button className="btn fantasma cheio" style={{ marginTop: 12 }} onClick={() => setExtrato(true)}>📄 Colocar o extrato do mês</button>
+      )}
+
       <div className="grade2" style={{ marginTop: 20 }}>
         <button className="bloco tomate" style={{ textAlign: 'left', minHeight: 128 }} onClick={() => ir('lista')}>
           <div style={{ fontWeight: 700 }}>Feira</div>
@@ -81,7 +88,7 @@ export function Inicio({ ir }: { ir: Ir }) {
           <div className="secao"><h2 className="subtitulo">Vence nesta semana</h2></div>
           <div className="folha-lista">
             {contas.map(c => (
-              <button className="linha" key={c.bill.id} onClick={() => ir('dinheiro')}>
+              <button className="linha" key={`${c.bill.id}-${iso(c.due)}`} onClick={() => ir('dinheiro')}>
                 <span style={{ fontSize: 24 }} aria-hidden>{c.bill.emoji}</span>
                 <div className="meio"><div className="nome">{c.bill.name}</div><div className="info">dia {dayMonth(iso(c.due))}</div></div>
                 <div style={{ textAlign: 'right' }}>
@@ -122,6 +129,7 @@ export function Inicio({ ir }: { ir: Ir }) {
       )}
 
       <Ajustes open={ajustes} onClose={() => setAjustes(false)} />
+      <ImportarExtrato open={extrato} onClose={() => setExtrato(false)} />
     </div>
   )
 }
@@ -158,7 +166,8 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
     await supabase.from('categories').update({ archived: true }).eq('id', id); await s.reload()
   }
   const sair = async () => {
-    try { Object.keys(localStorage).filter(k => k.startsWith('copia:') || k === 'fila-offline').forEach(k => localStorage.removeItem(k)) } catch { /* nada */ }
+    try { await desligarAvisos() } catch { /* sem internet: a inscrição expira sozinha */ }
+    try { Object.keys(localStorage).filter(k => k.startsWith('copia:') || k.startsWith('sites:') || ['fila-offline', 'nota-pendente', 'mercado-atual'].includes(k)).forEach(k => localStorage.removeItem(k)) } catch { /* nada */ }
     await supabase.auth.signOut(); onClose()
   }
 

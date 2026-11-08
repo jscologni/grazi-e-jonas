@@ -34,6 +34,7 @@ export default defineConfig({
         navigateFallback: `${BASE}index.html`,
         importScripts: ['push-sw.js?v=2'], // avisos de contas com o app fechado
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['**/pdf-*.js'], // leitor de PDF: só baixa quando alguém importa um extrato em PDF
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,

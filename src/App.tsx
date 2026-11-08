@@ -47,6 +47,16 @@ export default function App() {
     </div><Toasts /></div>
   )
   if (!s.loaded) return <div className="app"><div className="vazio" style={{ paddingTop: '40vh' }}><span className="emoji">🧺</span>Arrumando a feira…</div></div>
+  if ((!s.household || !s.me) && s.semConexao) return (
+    <div className="app">
+      <div className="vazio" style={{ paddingTop: '32vh' }}>
+        <span className="emoji">📡</span>
+        <p>Sem conexão para abrir a casa de vocês. Na primeira vez neste aparelho, o app precisa de internet.</p>
+        <button className="btn tomate" onClick={() => s.reload().catch(() => s.toast('Ainda sem conexão. Tente de novo em instantes.', 'erro'))}>Tentar de novo</button>
+      </div>
+      <Toasts />
+    </div>
+  )
   if (!s.household || !s.me) return <div className="app"><CriarCasa /><Toasts /></div>
 
   const faltam = s.items.filter(i => !i.checked).length

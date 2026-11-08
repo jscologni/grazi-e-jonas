@@ -26,8 +26,9 @@ export interface Data {
 }
 type Table = keyof Omit<Data, 'household'>
 
-const TABLES: Record<Table, { table: string; order?: [string, boolean] }> = {
-  members: { table: 'members', order: ['created_at', true] },
+// tie: coluna única para a paginação não pular nem repetir linhas
+const TABLES: Record<Table, { table: string; order?: [string, boolean]; tie?: string }> = {
+  members: { table: 'members', order: ['created_at', true], tie: 'user_id' },
   items: { table: 'shopping_items', order: ['created_at', true] },
   markets: { table: 'markets', order: ['name', true] },
   trips: { table: 'trips', order: ['created_at', false] },
@@ -50,12 +51,15 @@ const EMPTY: Data = {
   choreLog: [], categories: [], cards: [], bills: [], txs: [], goals: [], moves: [], accounts: [], cardPays: [], picks: [],
 }
 
+const PAGINA = 1000 // o Supabase devolve no máximo 1000 linhas por consulta
+
 export interface Ctx extends Data {
   session: Session | null
   me: Member | null
   ready: boolean          // sessão verificada
   loaded: boolean         // dados da casa carregados
   online: boolean
+  semConexao: boolean  // não deu para carregar a casa e não há cópia no celular
   pendentes: number   // mudanças da lista esperando internet
   recuperando: boolean // abriu pelo link de criar senha nova
   fimRecuperacao: () => void
@@ -93,6 +97,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(navigator.onLine)
   const [pendentes, setPendentes] = useState(tamanhoFila())
   const [recuperando, setRecuperando] = useState(false)
+  const [semConexao, setSemConexao] = useState(false)
   const [toasts, setToasts] = useState<Ctx['toasts']>([])
   const timers = useRef<Record<string, number>>({})
 
@@ -112,22 +117,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const fetchTable = useCallback(async (key: Table) => {
-    const { table, order } = TABLES[key]
-    let q = supabase.from(table).select('*')
-    if (order) q = q.order(order[0], { ascending: order[1] })
-    const { data: rows, error } = await q.limit(5000)
-    if (error) throw error
-    setData(d => ({ ...d, [key]: rows ?? [] }))
+    const { table, order, tie } = TABLES[key]
+    const todas: unknown[] = []
+    for (let de = 0; ; de += PAGINA) {
+      let q = supabase.from(table).select('*')
+      if (order) q = q.order(order[0], { ascending: order[1] })
+      const { data: rows, error } = await q.order(tie ?? 'id').range(de, de + PAGINA - 1)
+      if (error) throw error
+      todas.push(...(rows ?? []))
+      if (!rows || rows.length < PAGINA) break
+    }
+    setData(d => ({ ...d, [key]: todas }))
   }, [])
 
   const reload = useCallback(async () => {
-    if (!navigator.onLine) { setLoaded(true); return }
-    const { data: h, error } = await supabase.from('households').select('*').maybeSingle()
-    if (error) throw error
-    if (!h) { setData(EMPTY); setLoaded(true); return }
-    setData(d => ({ ...d, household: h }))
-    await Promise.all((Object.keys(TABLES) as Table[]).map(fetchTable))
-    setLoaded(true)
+    if (!navigator.onLine) { setSemConexao(true); setLoaded(true); return }
+    try {
+      const { data: h, error } = await supabase.from('households').select('*').maybeSingle()
+      if (error) throw error
+      if (!h) { setData(EMPTY); setSemConexao(false); setLoaded(true); return }
+      setData(d => ({ ...d, household: h }))
+      await Promise.all((Object.keys(TABLES) as Table[]).map(fetchTable))
+      setSemConexao(false)
+      setLoaded(true)
+    } catch (e) {
+      setSemConexao(true)
+      setLoaded(true)
+      throw e
+    }
   }, [fetchTable])
 
   // carrega quando a sessão muda (primeiro a cópia guardada no celular, depois o banco)
@@ -144,7 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session || !data.household) return
     const t = window.setTimeout(() => {
-      try { localStorage.setItem(`copia:${session.user.id}`, JSON.stringify(data)) } catch { /* sem espaço */ }
+      try { localStorage.setItem(`copia:${session.user.id}`, JSON.stringify({ ...data, prices: data.prices.slice(0, 1500) })) } catch { /* sem espaço */ }
     }, 800)
     return () => window.clearTimeout(t)
   }, [data, session])
@@ -152,6 +169,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // fila da lista: conta o que espera e envia quando a internet volta
   useEffect(() => {
     const mudou = (e: Event) => setPendentes((e as CustomEvent<number>).detail)
+    const recusada = (e: Event) => {
+      const n = (e as CustomEvent<number>).detail
+      toast(n === 1 ? 'Uma mudança da lista não foi aceita e foi desfeita. Confira a lista.' : `${n} mudanças da lista não foram aceitas e foram desfeitas. Confira a lista.`, 'erro')
+      reload().catch(() => {})
+    }
     const voltou = async () => {
       setOnline(true)
       const n = await enviarFila()
@@ -159,9 +181,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reload().catch(() => {})
     }
     window.addEventListener('fila-mudou', mudou)
+    window.addEventListener('fila-recusada', recusada)
     window.addEventListener('online', voltou)
     if (navigator.onLine && tamanhoFila()) void voltou()
-    return () => { window.removeEventListener('fila-mudou', mudou); window.removeEventListener('online', voltou) }
+    return () => { window.removeEventListener('fila-mudou', mudou); window.removeEventListener('fila-recusada', recusada); window.removeEventListener('online', voltou) }
   }, [reload, toast])
 
   // tempo real: quando o outro mexe, recarrega só a tabela que mudou
@@ -191,10 +214,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const me = data.members.find(m => m.user_id === session?.user.id) ?? null
     const member = (id: string | null | undefined) => data.members.find(m => m.user_id === id)
     return {
-      ...data, session, me, ready, loaded, online, pendentes, recuperando, fimRecuperacao: () => setRecuperando(false), reload, patch, toast, toasts,
+      ...data, session, me, ready, loaded, online, semConexao, pendentes, recuperando, fimRecuperacao: () => setRecuperando(false), reload, patch, toast, toasts,
       member, memberName: id => member(id)?.name ?? 'Alguém',
     }
-  }, [data, session, ready, loaded, online, pendentes, recuperando, reload, patch, toast, toasts])
+  }, [data, session, ready, loaded, online, semConexao, pendentes, recuperando, reload, patch, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }

@@ -63,9 +63,13 @@ const quando = (d: number) => d === 0 ? 'hoje' : d === 1 ? 'amanhã' : d < 0 ? '
 async function diario() {
   const hoje = hojeSP()
   const [y, m] = hoje.split('-').map(Number)
-  const mes = `${hoje.slice(0, 7)}-01`
-  const ultimo = new Date(y, m, 0).getDate()
-  const venc = (dia: number) => `${hoje.slice(0, 7)}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`
+  // mês passado, este e o próximo: quem vence dia 1 precisa do aviso ainda no fim do mês anterior
+  const meses = [-1, 0, 1].map(n => new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 10))
+  const venc = (mes: string, dia: number) => {
+    const [a, b] = mes.split('-').map(Number)
+    const ultimo = new Date(Date.UTC(a, b, 0)).getUTCDate()
+    return `${mes.slice(0, 8)}${String(Math.min(dia, ultimo)).padStart(2, '0')}`
+  }
 
   const { data: subs } = await db.from('push_subs').select('id, household_id, endpoint, p256dh, auth')
   const casas = [...new Set((subs ?? []).map(s => s.household_id))]
@@ -74,22 +78,24 @@ async function diario() {
     const itens: { nome: string; valor: number; d: number }[] = []
     const [{ data: bills }, { data: pagas }, { data: cards }, { data: compras }, { data: pagtos }] = await Promise.all([
       db.from('bills').select('id, name, amount, due_day').eq('household_id', casa).eq('active', true),
-      db.from('transactions').select('bill_id').eq('household_id', casa).eq('month', mes).not('bill_id', 'is', null),
+      db.from('transactions').select('bill_id, month').eq('household_id', casa).in('month', meses).not('bill_id', 'is', null),
       db.from('cards').select('id, name, due_day').eq('household_id', casa).eq('archived', false),
-      db.from('transactions').select('card_id, amount').eq('household_id', casa).eq('month', mes).eq('kind', 'out').not('card_id', 'is', null),
-      db.from('card_payments').select('card_id, amount').eq('household_id', casa).eq('month', mes),
+      db.from('transactions').select('card_id, month, amount').eq('household_id', casa).in('month', meses).eq('kind', 'out').not('card_id', 'is', null),
+      db.from('card_payments').select('card_id, month, amount').eq('household_id', casa).in('month', meses),
     ])
-    const pagasIds = new Set((pagas ?? []).map(p => p.bill_id))
-    for (const b of bills ?? []) {
-      const d = dias(hoje, venc(b.due_day))
-      if (!pagasIds.has(b.id) && d >= -1 && d <= 3) itens.push({ nome: b.name, valor: +b.amount, d })
-    }
-    for (const c of cards ?? []) {
-      const total = (compras ?? []).filter(t => t.card_id === c.id).reduce((a, t) => a + +t.amount, 0)
-      const pago = (pagtos ?? []).filter(p => p.card_id === c.id).reduce((a, p) => a + +p.amount, 0)
-      const falta = Math.round((total - pago) * 100) / 100
-      const d = dias(hoje, venc(c.due_day))
-      if (falta > 0 && d >= -1 && d <= 3) itens.push({ nome: `Fatura ${c.name}`, valor: falta, d })
+    for (const mes of meses) {
+      for (const b of bills ?? []) {
+        const d = dias(hoje, venc(mes, b.due_day))
+        const paga = (pagas ?? []).some(p => p.bill_id === b.id && p.month === mes)
+        if (!paga && d >= -1 && d <= 3) itens.push({ nome: b.name, valor: +b.amount, d })
+      }
+      for (const c of cards ?? []) {
+        const total = (compras ?? []).filter(t => t.card_id === c.id && t.month === mes).reduce((a, t) => a + +t.amount, 0)
+        const pago = (pagtos ?? []).filter(p => p.card_id === c.id && p.month === mes).reduce((a, p) => a + +p.amount, 0)
+        const falta = Math.round((total - pago) * 100) / 100
+        const d = dias(hoje, venc(mes, c.due_day))
+        if (falta > 0 && d >= -1 && d <= 3) itens.push({ nome: `Fatura ${c.name}`, valor: falta, d })
+      }
     }
     if (!itens.length) continue
     // no máximo um aviso por casa por dia

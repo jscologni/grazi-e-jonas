@@ -29,7 +29,7 @@ export interface Tx {
   id: string; kind: Kind; amount: number; description: string; category_id: string | null
   member_id: string | null; occurred_on: string; month: string; method: Method; card_id: string | null
   group_id: string | null; installment: number | null; installments: number | null
-  bill_id: string | null; trip_id: string | null; account_id: string | null; created_by: string | null; created_at: string
+  bill_id: string | null; trip_id: string | null; account_id: string | null; import_id?: string | null; created_by: string | null; created_at: string
 }
 export interface Goal { id: string; name: string; emoji: string; target: number; deadline: string | null; color: string; archived: boolean; created_at: string }
 export interface GoalMove { id: string; goal_id: string; amount: number; member_id: string | null; month: string; note: string | null; created_at: string }

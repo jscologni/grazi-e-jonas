@@ -5,6 +5,7 @@ import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Account } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents } from '../ui'
+import { ImportarExtrato } from './Extrato'
 
 /** Chips para escolher de qual conta o dinheiro sai (ou em qual entra) */
 export function EscolherConta({ value, onChange, titulo = 'De qual conta' }: { value: string | null; onChange: (id: string | null) => void; titulo?: string }) {
@@ -31,6 +32,7 @@ export function EscolherConta({ value, onChange, titulo = 'De qual conta' }: { v
 export function Saldos() {
   const s = useStore()
   const [editar, setEditar] = useState<Account | 'nova' | null>(null)
+  const [extrato, setExtrato] = useState<{ conta: string | null } | null>(null)
   const contas = s.accounts.filter(a => !a.archived)
   const saldos = contas.map(a => ({ a, v: accountBalance(a, s.txs, s.cardPays) }))
   const total = saldos.reduce((t, x) => t + x.v, 0)
@@ -52,12 +54,16 @@ export function Saldos() {
       )}
 
       <div className="secao"><h2 className="subtitulo">Contas</h2>
-        <button className="btn pequeno banana" onClick={() => setEditar('nova')}>+ Conta</button></div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn pequeno fantasma" onClick={() => setExtrato({ conta: null })}>📄 Extrato</button>
+          <button className="btn pequeno banana" onClick={() => setEditar('nova')}>+ Conta</button>
+        </div></div>
 
       {contas.length === 0 && (
         <div className="vazio"><span className="emoji">🏦</span>
           Cadastre a conta de cada um (Nubank, Caixa, carteira…) com o saldo de hoje.
-          Daí em diante, o que vocês lançarem entra e sai do saldo sozinho.</div>
+          Daí em diante, o que vocês lançarem entra e sai do saldo sozinho.
+          <button className="btn banana" style={{ marginTop: 12 }} onClick={() => setExtrato({ conta: null })}>📄 Começar pelo extrato do mês</button></div>
       )}
 
       {donos.map(dono => {
@@ -87,12 +93,13 @@ export function Saldos() {
           e faturas pagas descontam. Compras no crédito só saem da conta quando a fatura é paga.
         </p>
       )}
-      <EditarContaBanco conta={editar} onClose={() => setEditar(null)} />
+      <EditarContaBanco conta={editar} onClose={() => setEditar(null)} onExtrato={id => { setEditar(null); setExtrato({ conta: id }) }} />
+      <ImportarExtrato open={!!extrato} contaInicial={extrato?.conta ?? null} onClose={() => setExtrato(null)} />
     </>
   )
 }
 
-function EditarContaBanco({ conta, onClose }: { conta: Account | 'nova' | null; onClose: () => void }) {
+function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nova' | null; onClose: () => void; onExtrato: (id: string) => void }) {
   const s = useStore()
   const c = useCents(0)
   const [chave, setChave] = useState<string | null>(null)
@@ -141,6 +148,7 @@ function EditarContaBanco({ conta, onClose }: { conta: Account | 'nova' | null; 
       <label className="campo"><span>Dia do saldo</span>
         <input className="entrada" type="date" value={f.initial_date} onChange={e => setF({ ...f, initial_date: e.target.value || today() })} /></label>
       <p className="pequeno leve">Lançamentos a partir desse dia mexem no saldo; os anteriores já estão dentro dele.</p>
+      {conta && conta !== 'nova' && <button className="btn banana cheio" onClick={() => onExtrato(conta.id)}>📄 Atualizar com o extrato</button>}
       <div className="acoes">
         {conta !== 'nova' && <button className="btn fantasma" onClick={arquivar}>Encerrar conta</button>}
         <button className="btn" onClick={salvar}>Salvar</button>
