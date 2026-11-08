@@ -21,6 +21,10 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
   const [metodo, setMetodo] = useState<Method>('pix')
   const [cartao, setCartao] = useState<string | null>(null)
   const [parcelas, setParcelas] = useState(1)
+  // compra antiga: parte das parcelas já foi paga antes de usar o app
+  const [antiga, setAntiga] = useState(false)
+  const [pagas, setPagas] = useState(1)
+  const [primeira, setPrimeira] = useState<string | null>(null)
   const [conta, setConta] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -28,7 +32,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
     setAberto(true)
     setKind(tx?.kind ?? kindInicial); c.set(tx ? +tx.amount : 0); setDesc(tx?.description ?? ''); setCat(tx?.category_id ?? null)
     setQuem(tx?.member_id ?? s.me?.user_id ?? null); setData(tx?.occurred_on ?? today()); setMetodo(tx?.method ?? 'pix')
-    setCartao(tx?.card_id ?? null); setParcelas(1)
+    setCartao(tx?.card_id ?? null); setParcelas(1); setAntiga(false); setPagas(1); setPrimeira(null)
     setConta(tx ? tx.account_id : contaPadrao(s.accounts, s.me?.user_id))
   }
   if (!open && aberto) setAberto(false)
@@ -42,6 +46,11 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
   const ehVale = (id: string | null) => s.accounts.find(a => a.id === id)?.kind === 'alimentacao'
   const primeiraFatura = card ? invoiceMonth(data, card) : null
   const valorParcela = c.value / parcelas
+  const emAndamento = antiga && !editando && kind === 'out' && metodo === 'credito' && !!card
+  const proximas = card ? [0, 1, 2].map(i => addMonths(invoiceMonth(today(), card), i)) : []
+  const mesInicial = primeira && proximas.includes(primeira) ? primeira : proximas[0]
+  const jaPagas = Math.min(pagas, parcelas - 1)
+  const faltam = parcelas - jaPagas
 
   const salvar = async () => {
     if (c.value <= 0 || busy) return
@@ -64,6 +73,15 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
         }).eq('id', tx.id)
         if (error) throw error
         s.toast('Lançamento atualizado')
+      } else if (emAndamento) {
+        const group = crypto.randomUUID()
+        const rows = Array.from({ length: faltam }, (_, i) => ({
+          ...base, group_id: group, installment: jaPagas + 1 + i, installments: parcelas,
+          amount: c.value, month: addMonths(mesInicial, i),
+        }))
+        const { error } = await supabase.from('transactions').insert(rows)
+        if (error) throw error
+        s.toast(`${faltam} ${faltam === 1 ? 'parcela lançada' : 'parcelas lançadas'}, a partir da fatura de ${monthShort(mesInicial)}`)
       } else if (base.card_id && card && parcelas > 1) {
         const group = crypto.randomUUID()
         const cents = Math.round(c.value * 100)
@@ -107,6 +125,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
           <button aria-pressed={kind === 'in'} onClick={() => { setKind('in'); setCat(null) }}>Ganhei</button>
         </div>
       )}
+      {emAndamento && <p className="pequeno leve" style={{ margin: '10px 0 -6px', textAlign: 'center', fontWeight: 700 }}>Valor de cada parcela</p>}
       <div className={`visor ${kind === 'in' ? 'entra' : 'sai'} cabe`}><Cartaz value={c.value} size="g" /></div>
       <Teclado onKey={c.press} />
 
@@ -127,7 +146,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
         </div>
       </div>
 
-      <label className="campo"><span>Dia</span>
+      <label className="campo"><span>{emAndamento ? 'Dia da compra (se não lembrar, deixe hoje)' : 'Dia'}</span>
         <input className="entrada" type="date" value={data} onChange={e => setData(e.target.value || today())} disabled={parcelado} /></label>
 
       {kind === 'out' && (
@@ -142,14 +161,41 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
                 {cards.map(k => <button key={k.id} className="chip" aria-pressed={cartao === k.id} disabled={parcelado} onClick={() => setCartao(k.id)}>💳 {k.name}</button>)}
               </div>
               {!editando && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
-                  <button className="fechar" onClick={() => setParcelas(p => Math.max(1, p - 1))} aria-label="Menos parcelas">−</button>
-                  <b className="num" style={{ minWidth: 70, textAlign: 'center' }}>{parcelas === 1 ? 'À vista' : `${parcelas}×`}</b>
-                  <button className="fechar" onClick={() => setParcelas(p => Math.min(24, p + 1))} aria-label="Mais parcelas">+</button>
-                  {c.value > 0 && primeiraFatura && (
-                    <span className="pequeno leve">{parcelas > 1 ? `${parcelas}× de ${money(valorParcela)}, ` : ''}1ª na fatura de {monthShort(primeiraFatura)}</span>
+                <>
+                  <label className="campo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" checked={antiga} onChange={e => { setAntiga(e.target.checked); if (e.target.checked) setParcelas(p => Math.max(2, p)) }} style={{ width: 22, height: 22 }} />
+                    <span style={{ margin: 0 }}>Compra antiga, com parcelas já pagas</span>
+                  </label>
+                  <div className="pequeno" style={{ fontWeight: 700, marginTop: 12 }}>{antiga ? 'Total de parcelas da compra' : 'Parcelas'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                    <button className="fechar" onClick={() => setParcelas(p => Math.max(antiga ? 2 : 1, p - 1))} aria-label="Menos parcelas">−</button>
+                    <b className="num" style={{ minWidth: 70, textAlign: 'center' }}>{parcelas === 1 ? 'À vista' : `${parcelas}×`}</b>
+                    <button className="fechar" onClick={() => setParcelas(p => Math.min(48, p + 1))} aria-label="Mais parcelas">+</button>
+                    {!antiga && c.value > 0 && primeiraFatura && (
+                      <span className="pequeno leve">{parcelas > 1 ? `${parcelas}× de ${money(valorParcela)}, ` : ''}1ª na fatura de {monthShort(primeiraFatura)}</span>
+                    )}
+                  </div>
+                  {antiga && card && (
+                    <>
+                      <div className="pequeno" style={{ fontWeight: 700, marginTop: 12 }}>Quantas já foram pagas</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                        <button className="fechar" onClick={() => setPagas(Math.max(1, jaPagas - 1))} aria-label="Menos parcelas pagas">−</button>
+                        <b className="num" style={{ minWidth: 70, textAlign: 'center' }}>{jaPagas}</b>
+                        <button className="fechar" onClick={() => setPagas(Math.min(parcelas - 1, jaPagas + 1))} aria-label="Mais parcelas pagas">+</button>
+                      </div>
+                      <div className="pequeno" style={{ fontWeight: 700, marginTop: 12 }}>A próxima parcela vence na fatura de</div>
+                      <div className="chips" style={{ marginTop: 6 }}>
+                        {proximas.map(m => <button key={m} className="chip" aria-pressed={mesInicial === m} onClick={() => setPrimeira(m)}>{monthShort(m)}</button>)}
+                      </div>
+                      {c.value > 0 && (
+                        <p className="aviso">
+                          {faltam === 1 ? `Falta 1 parcela de ${money(c.value)}` : `Faltam ${faltam} parcelas de ${money(c.value)}`}: a {jaPagas + 1}/{parcelas} em {monthShort(mesInicial)}
+                          {faltam > 1 ? ` e a última em ${monthShort(addMonths(mesInicial, faltam - 1))}` : ''}.
+                        </p>
+                      )}
+                    </>
                   )}
-                </div>
+                </>
               )}
               {parcelado && <p className="pequeno leve">Parcela {tx?.installment} de {tx?.installments}.</p>}
             </>
