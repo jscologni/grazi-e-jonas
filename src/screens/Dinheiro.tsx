@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { useId, useMemo, useState } from 'react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
-import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, summary, type BillState } from '../lib/finance'
+import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, saldoVale, summary, type BillState } from '../lib/finance'
 import { dayMonth, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -23,7 +23,7 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
         <MesNav month={month} onChange={setMonth} />
       </div>
 
-      <Etiqueta month={month} {...res} saldo={month === monthOf(new Date()) ? saldoContas(s.accounts, s.txs, s.cardPays) : null} />
+      <Etiqueta month={month} {...res} saldo={month === monthOf(new Date()) ? saldoContas(s.accounts, s.txs, s.cardPays) : null} vale={saldoVale(s.accounts, s.txs, s.cardPays)} />
 
       <div className="abas" role="tablist">
         {([['mes', 'Lançamentos'], ['saldos', 'Saldos'], ['contas', 'Contas fixas'], ['cartoes', 'Cartões'], ['caixinhas', 'Caixinhas']] as [Aba, string][]).map(([id, n]) => (
@@ -41,7 +41,7 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
 }
 
 /** No mês atual mostra o dinheiro que está nas contas; em outros meses, a sobra daquele mês */
-export function Etiqueta({ month, inicial = 0, entrou, saiu, guardou, sobra, saldo = null }: { month: string; inicial?: number; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null }) {
+export function Etiqueta({ month, inicial = 0, entrou, saiu, guardou, sobra, saldo = null, vale = null }: { month: string; inicial?: number; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null; vale?: number | null }) {
   const valor = saldo ?? sobra
   return (
     <motion.div className={`etiqueta ${valor < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
@@ -54,6 +54,7 @@ export function Etiqueta({ month, inicial = 0, entrou, saiu, guardou, sobra, sal
         <span>saiu no mês<b>{money(saiu)}</b></span>
         {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
         {saldo != null && <span>sobra do mês<b>{money(sobra)}</b></span>}
+        {saldo != null && vale != null && <span>no cartão alimentação<b>{money(vale)}</b></span>}
       </div>
     </motion.div>
   )
@@ -232,7 +233,7 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
           <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
           <Teclado onKey={c.press} />
           <div className="campo"><span>Pago com</span>
-            <div className="chips">{METHODS.filter(m => m.id !== 'credito').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => setMetodo(m.id as Method)}>{m.label}</button>)}</div>
+            <div className="chips">{METHODS.filter(m => m.id !== 'credito' && m.id !== 'vale').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => setMetodo(m.id as Method)}>{m.label}</button>)}</div>
           </div>
           <div className="campo"><span>Quem pagou</span>
             <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>

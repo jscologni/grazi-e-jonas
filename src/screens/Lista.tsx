@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MARKET_SUGGESTIONS, METHODS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
-import { basketByMarket, contaPadrao, invoiceMonth, latestByMarket } from '../lib/finance'
+import { basketByMarket, contaPadrao, contaVale, invoiceMonth, latestByMarket } from '../lib/finance'
 import { ago, money, monthOf, norm, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -411,6 +411,8 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
 
   const cards = s.cards.filter(k => !k.archived)
   const mercadoEscolhido = s.markets.find(m => m.id === mercadoId)
+  const vale = contaVale(s.accounts, quem)
+  const ehVale = (id: string | null) => s.accounts.find(a => a.id === id)?.kind === 'alimentacao'
 
   const daNota = async (cnpj: string, key: string) => {
     setLendo(false); setChave(key)
@@ -485,8 +487,8 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
           </div>
           <div className="campo"><span>Como pagou</span>
             <div className="chips">
-              {METHODS.filter(m => m.id !== 'boleto').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id}
-                onClick={() => { setMetodo(m.id as Method); if (m.id === 'credito' && !cartao) setCartao(cards[0]?.id ?? null) }}>{m.label}</button>)}
+              {METHODS.filter(m => m.id !== 'boleto' && (m.id !== 'vale' || vale)).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id}
+                onClick={() => { setMetodo(m.id as Method); if (m.id === 'credito' && !cartao) setCartao(cards[0]?.id ?? null); if (m.id === 'vale') setConta(vale?.id ?? null); else if (ehVale(conta)) setConta(contaPadrao(s.accounts, quem)) }}>{m.label}</button>)}
             </div>
             {metodo === 'credito' && (
               cards.length
@@ -494,7 +496,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
                 : <p className="pequeno" style={{ color: 'var(--tomate)', fontWeight: 700 }}>Cadastre um cartão em Dinheiro › Cartões.</p>
             )}
           </div>
-          {metodo !== 'credito' && <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />}
+          {metodo !== 'credito' && <EscolherConta value={conta} onChange={id => { setConta(id); if (ehVale(id)) setMetodo('vale'); else if (metodo === 'vale') setMetodo('debito') }} titulo="Saiu de qual conta" />}
         </>
       )}
 

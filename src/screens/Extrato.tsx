@@ -165,7 +165,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
         const cat = l.bill ? l.bill.category_id ?? contasCat?.id ?? null : s.categories.find(k => k.kind === kind && !k.archived && k.name === l.categoria)?.id ?? null
         return {
           kind, amount: Math.abs(l.valor), description: l.mov.desc, category_id: cat, member_id: conta.owner ?? s.me?.user_id,
-          occurred_on: l.mov.data, month: monthOf(l.mov.data), method: kind === 'in' ? 'pix' : l.metodo, import_id: l.mov.id, bill_id: l.bill?.id ?? null,
+          occurred_on: l.mov.data, month: monthOf(l.mov.data), method: kind === 'in' ? 'pix' : conta.kind === 'alimentacao' ? 'vale' : l.metodo, import_id: l.mov.id, bill_id: l.bill?.id ?? null,
         }
       }),
     })

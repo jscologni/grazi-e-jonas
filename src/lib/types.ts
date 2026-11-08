@@ -1,5 +1,5 @@
 export type Kind = 'in' | 'out'
-export type Method = 'pix' | 'debito' | 'credito' | 'dinheiro' | 'boleto' | 'outro'
+export type Method = 'pix' | 'debito' | 'credito' | 'dinheiro' | 'boleto' | 'outro' | 'vale'
 export type PantryStatus = 'cheio' | 'acabando' | 'acabou'
 
 export interface Household { id: string; name: string; invite_code: string; city: string; uf: string }
@@ -33,6 +33,6 @@ export interface Tx {
 }
 export interface Goal { id: string; name: string; emoji: string; target: number; deadline: string | null; color: string; archived: boolean; created_at: string }
 export interface GoalMove { id: string; goal_id: string; amount: number; member_id: string | null; month: string; note: string | null; created_at: string }
-export interface Account { id: string; name: string; owner: string | null; initial_balance: number; initial_date: string; archived: boolean; created_at: string }
+export interface Account { id: string; name: string; kind?: 'conta' | 'alimentacao'; owner: string | null; initial_balance: number; initial_date: string; archived: boolean; created_at: string }
 export interface CardPayment { id: string; card_id: string; account_id: string | null; amount: number; month: string; paid_on: string; member_id: string | null; created_at: string }
 export interface ProductPick { id: string; norm: string; ean: string; product: string }

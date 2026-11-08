@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { accountBalance, faturasAPagar } from '../lib/finance'
+import { accountBalance, faturasAPagar, saldoVale } from '../lib/finance'
 import { dayMonth, money, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -37,7 +37,7 @@ export function Saldos() {
   const saldos = contas.map(a => ({ a, v: accountBalance(a, s.txs, s.cardPays) }))
   const total = saldos.reduce((t, x) => t + x.v, 0)
   const faturas = faturasAPagar(s.cards, s.txs, s.cardPays, today())
-  const livre = total - faturas
+  const livre = total - (saldoVale(s.accounts, s.txs, s.cardPays) ?? 0) - faturas // cartão alimentação não paga fatura
   const donos = [...s.members.map(m => m.user_id), null]
 
   return (
@@ -77,7 +77,7 @@ export function Saldos() {
             <div className="folha-lista">
               {lista.map(({ a, v }) => (
                 <button className="linha" key={a.id} onClick={() => setEditar(a)}>
-                  <span style={{ fontSize: 24 }} aria-hidden>🏦</span>
+                  <span style={{ fontSize: 24 }} aria-hidden>{a.kind === 'alimentacao' ? '🍽️' : '🏦'}</span>
                   <div className="meio"><div className="nome">{a.name}</div>
                     <div className="info">início {dayMonth(a.initial_date)}: {money(+a.initial_balance)}</div></div>
                   <span className={`valor ${v < 0 ? '' : 'entra'}`} style={v < 0 ? { color: 'var(--tomate)' } : undefined}>{money(v)}</span>
@@ -103,20 +103,20 @@ function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nov
   const s = useStore()
   const c = useCents(0)
   const [chave, setChave] = useState<string | null>(null)
-  const [f, setF] = useState({ name: '', owner: null as string | null, initial_date: today(), negativo: false })
+  const [f, setF] = useState({ name: '', kind: 'conta' as 'conta' | 'alimentacao', owner: null as string | null, initial_date: today(), negativo: false })
   const k = conta === 'nova' ? 'nova' : conta?.id ?? null
   if (k && chave !== k) {
     setChave(k)
     if (conta && conta !== 'nova') {
-      setF({ name: conta.name, owner: conta.owner, initial_date: conta.initial_date, negativo: +conta.initial_balance < 0 })
+      setF({ name: conta.name, kind: conta.kind ?? 'conta', owner: conta.owner, initial_date: conta.initial_date, negativo: +conta.initial_balance < 0 })
       c.set(Math.abs(+conta.initial_balance))
-    } else { setF({ name: '', owner: s.me?.user_id ?? null, initial_date: today(), negativo: false }); c.set(0) }
+    } else { setF({ name: '', kind: 'conta', owner: s.me?.user_id ?? null, initial_date: today(), negativo: false }); c.set(0) }
   }
   if (!k && chave) setChave(null)
 
   const salvar = async () => {
     if (!f.name.trim()) return s.toast('Dê um nome para a conta', 'erro')
-    const row = { name: f.name.trim(), owner: f.owner, initial_date: f.initial_date, initial_balance: f.negativo ? -c.value : c.value }
+    const row = { name: f.name.trim(), kind: f.kind, owner: f.owner, initial_date: f.initial_date, initial_balance: f.negativo ? -c.value : c.value }
     const { error } = conta === 'nova' ? await supabase.from('accounts').insert(row) : await supabase.from('accounts').update(row).eq('id', (conta as Account).id)
     if (error) return s.toast(say(error), 'erro')
     s.toast(conta === 'nova' ? 'Conta criada' : 'Conta atualizada'); await s.reload(); onClose()
@@ -130,8 +130,12 @@ function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nov
 
   return (
     <Sheet open={!!conta} onClose={onClose} title={conta === 'nova' ? 'Nova conta' : 'Editar conta'}>
+      <div className="segmento" style={{ marginTop: 8 }}>
+        <button aria-pressed={f.kind === 'conta'} onClick={() => setF({ ...f, kind: 'conta' })}>🏦 Conta</button>
+        <button aria-pressed={f.kind === 'alimentacao'} onClick={() => setF({ ...f, kind: 'alimentacao' })}>🍽️ Cartão alimentação</button>
+      </div>
       <label className="campo"><span>Nome</span>
-        <input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Nubank, Caixa, Sicoob, carteira…" /></label>
+        <input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={f.kind === 'alimentacao' ? 'Cartão alimentação' : 'Nubank, Caixa, Sicoob, carteira…'} /></label>
       <div className="campo"><span>De quem é</span>
         <div className="chips">
           {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={f.owner === m.user_id} onClick={() => setF({ ...f, owner: m.user_id })}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}

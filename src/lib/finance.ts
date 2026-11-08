@@ -114,6 +114,18 @@ export function saldoContas(accounts: Account[], txs: Tx[], pays: CardPayment[])
   return ativas.length ? ativas.reduce((t, a) => t + accountBalance(a, txs, pays), 0) : null
 }
 
+/** Cartão alimentação ativo da casa (o da pessoa, se tiver) */
+export const contaVale = (accounts: Account[], member?: string | null) => {
+  const vales = accounts.filter(a => !a.archived && a.kind === 'alimentacao')
+  return vales.find(a => a.owner === member) ?? vales[0] ?? null
+}
+
+/** Saldo somado dos cartões alimentação; null se não há nenhum */
+export function saldoVale(accounts: Account[], txs: Tx[], pays: CardPayment[]) {
+  const vales = accounts.filter(a => !a.archived && a.kind === 'alimentacao')
+  return vales.length ? vales.reduce((t, a) => t + accountBalance(a, txs, pays), 0) : null
+}
+
 /** Fatura de um cartão num mês: total das compras, quanto já foi pago e quanto falta */
 export function invoice(card: Card, month: string, txs: Tx[], pays: CardPayment[]) {
   const total = txs.filter(t => t.card_id === card.id && t.month === month && t.kind === 'out').reduce((a, t) => a + +t.amount, 0)
@@ -135,4 +147,6 @@ export function faturasAPagar(cards: Card[], txs: Tx[], pays: CardPayment[], hoj
 
 /** Conta padrão de uma pessoa: a primeira dela, ou a primeira da casa */
 export const contaPadrao = (accounts: Account[], member: string | null | undefined) =>
-  (accounts.find(a => !a.archived && a.owner === member) ?? accounts.find(a => !a.archived))?.id ?? null
+  (accounts.find(a => !a.archived && a.kind !== 'alimentacao' && a.owner === member)
+    ?? accounts.find(a => !a.archived && a.kind !== 'alimentacao')
+    ?? accounts.find(a => !a.archived))?.id ?? null

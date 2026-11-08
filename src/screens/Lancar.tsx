@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { METHODS } from '../lib/catalog'
-import { contaPadrao, invoiceMonth } from '../lib/finance'
+import { contaPadrao, contaVale, invoiceMonth } from '../lib/finance'
 import { addMonths, money, monthOf, monthShort, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -38,6 +38,8 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
   const cards = s.cards.filter(k => !k.archived)
   const card = cards.find(k => k.id === cartao)
   const cats = s.categories.filter(k => k.kind === kind && !k.archived)
+  const vale = contaVale(s.accounts, quem)
+  const ehVale = (id: string | null) => s.accounts.find(a => a.id === id)?.kind === 'alimentacao'
   const primeiraFatura = card ? invoiceMonth(data, card) : null
   const valorParcela = c.value / parcelas
 
@@ -131,8 +133,8 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
       {kind === 'out' && (
         <div className="campo"><span>Como pagou</span>
           <div className="chips">
-            {METHODS.map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} disabled={parcelado}
-              onClick={() => { setMetodo(m.id as Method); if (m.id === 'credito' && !cartao) setCartao(cards[0]?.id ?? null) }}>{m.label}</button>)}
+            {METHODS.filter(m => m.id !== 'vale' || vale).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} disabled={parcelado}
+              onClick={() => { setMetodo(m.id as Method); if (m.id === 'credito' && !cartao) setCartao(cards[0]?.id ?? null); if (m.id === 'vale') setConta(vale?.id ?? null); else if (ehVale(conta)) setConta(contaPadrao(s.accounts, quem)) }}>{m.label}</button>)}
           </div>
           {metodo === 'credito' && (cards.length ? (
             <>
@@ -156,7 +158,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
       )}
 
       {(kind === 'in' || metodo !== 'credito') && (
-        <EscolherConta value={conta} onChange={setConta} titulo={kind === 'in' ? 'Entrou em qual conta' : 'Saiu de qual conta'} />
+        <EscolherConta value={conta} onChange={id => { setConta(id); if (kind === 'out') { if (ehVale(id)) setMetodo('vale'); else if (metodo === 'vale') setMetodo('debito') } }} titulo={kind === 'in' ? 'Entrou em qual conta' : 'Saiu de qual conta'} />
       )}
 
       <button className={`btn cheio ${kind === 'in' ? 'folha' : 'tomate'}`} style={{ marginTop: 22 }} onClick={salvar} disabled={busy || c.value <= 0}>

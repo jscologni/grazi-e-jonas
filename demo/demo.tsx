@@ -115,6 +115,7 @@ const data: Data = {
   ],
   accounts: [
     { id: 'a1', name: 'Nubank', owner: J, initial_balance: 2350, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
+    { id: 'a3', name: 'Cartão alimentação', kind: 'alimentacao', owner: J, initial_balance: 33.58, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
     { id: 'a2', name: 'Caixa', owner: G, initial_balance: 1820.5, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
   ],
   picks: [],

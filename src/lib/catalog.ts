@@ -62,6 +62,7 @@ export const METHODS: { id: string; label: string }[] = [
   { id: 'credito', label: 'Crédito' },
   { id: 'dinheiro', label: 'Dinheiro' },
   { id: 'boleto', label: 'Boleto' },
+  { id: 'vale', label: 'Cartão alimentação' },
 ]
 
 export const CARD_COLORS = ['berinjela', 'tomate', 'folha', 'abobora', 'uva', 'tinta']
