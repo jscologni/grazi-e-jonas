@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
-import { accountBalance, billsFor, choreStatus, summary } from '../lib/finance'
-import { addMonths, ago, dayMonth, firstName, iso, money, monthOf } from '../lib/format'
+import { accountBalance, choreStatus, summary } from '../lib/finance'
+import { dayMonth, firstName, money, monthOf } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Sheet } from '../ui'
@@ -22,8 +22,6 @@ export function Inicio({ ir }: { ir: Ir }) {
   const [extrato, setExtrato] = useState(false)
   const mes = monthOf(new Date())
   const res = summary(mes, s.txs, s.moves, s.accounts)
-  // inclui as que vencem no começo do mês seguinte
-  const contas = [...billsFor(mes, s.bills, s.txs), ...billsFor(addMonths(mes, 1), s.bills, s.txs)].filter(b => !b.paid && b.days <= 7)
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
@@ -38,16 +36,6 @@ export function Inicio({ ir }: { ir: Ir }) {
       return a.name.localeCompare(b.name)
     })
   }, [bancos])
-
-  // o que o outro fez por último
-  const atividade = useMemo(() => {
-    const ev: { quando: string; quem: string | null; texto: string; emoji: string }[] = []
-    for (const i of s.items) ev.push({ quando: i.created_at, quem: i.added_by, texto: `pôs ${i.name} na lista`, emoji: '🛒' })
-    for (const t of s.txs.slice(0, 40)) if (!t.installment || t.installment === 1) ev.push({ quando: t.created_at, quem: t.created_by, texto: `${t.kind === 'in' ? 'anotou entrada de' : 'anotou gasto de'} ${money(+t.amount)}${t.description ? ` (${t.description})` : ''}`, emoji: t.kind === 'in' ? '💰' : '💸' })
-    for (const l of s.choreLog.slice(0, 20)) ev.push({ quando: l.done_at, quem: l.done_by, texto: `fez: ${s.chores.find(c => c.id === l.chore_id)?.name ?? 'tarefa'}`, emoji: '✅' })
-    for (const p of s.pantry) if (p.status !== 'cheio' && p.updated_by) ev.push({ quando: p.updated_at, quem: p.updated_by, texto: `avisou que ${p.status === 'acabou' ? 'acabou' : 'está acabando'} ${p.name}`, emoji: '🥫' })
-    return ev.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 6)
-  }, [s.items, s.txs, s.choreLog, s.chores, s.pantry])
 
   return (
     <div className="page">
@@ -121,51 +109,6 @@ export function Inicio({ ir }: { ir: Ir }) {
           <span className="emoji-fundo" aria-hidden>🧹</span>
         </button>
       </div>
-
-      {contas.length > 0 && (
-        <>
-          <div className="secao"><h2 className="subtitulo">Vence nesta semana</h2></div>
-          <div className="folha-lista">
-            {contas.map(c => (
-              <button className="linha" key={`${c.bill.id}-${iso(c.due)}`} onClick={() => ir('dinheiro')}>
-                <span style={{ fontSize: 24 }} aria-hidden>{c.bill.emoji}</span>
-                <div className="meio"><div className="nome">{c.bill.name}</div><div className="info">dia {dayMonth(iso(c.due))}</div></div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="valor">{money(+c.bill.amount)}</div>
-                  <span className={`status ${c.status}`}>{c.status === 'vencida' ? `venceu há ${-c.days}d` : c.status === 'hoje' ? 'hoje' : `em ${c.days}d`}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {faltam.length > 0 && (
-        <>
-          <div className="secao"><h2 className="subtitulo">Na lista</h2><button className="link pequeno" onClick={() => ir('lista')}>abrir</button></div>
-          <div className="chips">{faltam.slice(0, 10).map(i => <span key={i.id} className="chip">{i.name}</span>)}{faltam.length > 10 && <span className="chip">+{faltam.length - 10}</span>}</div>
-        </>
-      )}
-
-      {atividade.length > 0 && (
-        <>
-          <div className="secao"><h2 className="subtitulo">Por aqui</h2></div>
-          <div className="folha-lista">
-            {atividade.map((a, i) => {
-              const m = s.member(a.quem)
-              return (
-                <div className="linha" key={i} style={{ minHeight: 52 }}>
-                  {m ? <Adesivo fruit={m.fruit} size={28} /> : <span style={{ fontSize: 22 }}>{a.emoji}</span>}
-                  <div className="meio">
-                    <div style={{ fontSize: 14.5 }}><b>{a.quem === s.me?.user_id ? 'Você' : m?.name ?? 'Alguém'}</b> {a.texto}</div>
-                    <div className="info">{ago(a.quando)}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
 
       <Ajustes open={ajustes} onClose={() => setAjustes(false)} />
       <ImportarExtrato open={extrato} onClose={() => setExtrato(false)} />
