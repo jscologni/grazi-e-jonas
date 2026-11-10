@@ -135,7 +135,7 @@ function Demo() {
   const member = (u: string | null | undefined) => d.members.find(m => m.user_id === u)
   const value: Ctx = {
     ...d, session: { user: { id: J, email: 'jonas@exemplo.com' } } as Ctx['session'], me: d.members[0],
-    ready: true, loaded: true, online: true, reload: async () => {},
+    ready: true, loaded: true, online: true, reload: () => new Promise<void>(r => setTimeout(r, 1300)),
     patch: (k, fn) => setD(x => ({ ...x, [k]: fn(x[k]) })),
     member, memberName: u => member(u)?.name ?? 'Alguém',
     toast: (msg, tone = 'ok') => { const i = Date.now(); setToasts(t => [...t, { id: i, msg, tone }]); setTimeout(() => setToasts(t => t.filter(x => x.id !== i)), 2500) },
