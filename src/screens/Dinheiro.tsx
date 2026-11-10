@@ -378,23 +378,36 @@ function Contas({ month }: { month: string }) {
 function PagarConta({ estado, month, onClose }: { estado: BillState | null; month: string; onClose: () => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [id, setId] = useState<string | null>(null)
   const [metodo, setMetodo] = useState<Method>('pix')
   const [quem, setQuem] = useState<string | null>(null)
   const [conta, setConta] = useState<string | null>(null)
-  if (estado && id !== estado.bill.id) { setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)) }
+  if (estado && id !== estado.bill.id) {
+    setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id))
+    setSalvando(false)
+  }
   if (!estado && id) setId(null)
   const pagar = async () => {
-    if (!estado || c.value <= 0) return
-    const contasCat = s.categories.find(k => k.kind === 'out' && k.name === 'Contas')
-    const { error } = await supabase.from('transactions').insert({
-      kind: 'out', amount: c.value, description: estado.bill.name, category_id: estado.bill.category_id ?? contasCat?.id ?? null,
-      member_id: quem, occurred_on: today(), month, method: metodo, bill_id: estado.bill.id, account_id: conta,
-    })
-    if (error) return s.toast(say(error), 'erro')
-    if (estado.bill.variable) await supabase.from('bills').update({ amount: c.value }).eq('id', estado.bill.id)
-    s.toast(`${estado.bill.name} paga`)
-    await s.reload(); onClose()
+    if (salvando || !estado || c.value <= 0) return
+    setSalvando(true)
+    try {
+      const contasCat = s.categories.find(k => k.kind === 'out' && k.name === 'Contas')
+      const { error } = await supabase.from('transactions').insert({
+        kind: 'out', amount: c.value, description: estado.bill.name, category_id: estado.bill.category_id ?? contasCat?.id ?? null,
+        member_id: quem, occurred_on: today(), month, method: metodo, bill_id: estado.bill.id, account_id: conta,
+      })
+      if (error) {
+        setSalvando(false)
+        return s.toast(say(error), 'erro')
+      }
+      if (estado.bill.variable) await supabase.from('bills').update({ amount: c.value }).eq('id', estado.bill.id)
+      s.toast(`${estado.bill.name} paga`)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao pagar conta', 'erro')
+    }
   }
   const desfazer = async () => {
     if (!estado?.paid) return
@@ -403,7 +416,7 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
     s.toast('Pagamento desfeito'); await s.reload(); onClose()
   }
   return (
-    <Sheet open={!!estado} onClose={onClose} title={estado ? `${estado.bill.emoji} ${estado.bill.name}` : ''}>
+    <Sheet open={!!estado} onClose={salvando ? () => {} : onClose} title={estado ? `${estado.bill.emoji} ${estado.bill.name}` : ''}>
       {estado?.paid ? (
         <>
           <p>Paga em {dayMonth(estado.paid.occurred_on)} por {s.memberName(estado.paid.member_id)}: <b>{money(+estado.paid.amount)}</b>.</p>
@@ -413,15 +426,17 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
         <>
           <p className="leve pequeno" style={{ margin: 0 }}>{estado?.bill.variable ? 'Confira o valor da conta deste mês.' : 'Valor de sempre. Ajuste se veio diferente.'}</p>
           <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
-          <Teclado onKey={c.press} />
+          <Teclado onKey={salvando ? () => {} : c.press} />
           <div className="campo"><span>Pago com</span>
-            <div className="chips">{METHODS.filter(m => m.id !== 'credito' && m.id !== 'vale').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => setMetodo(m.id as Method)}>{m.label}</button>)}</div>
+            <div className="chips">{METHODS.filter(m => m.id !== 'credito' && m.id !== 'vale').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => !salvando && setMetodo(m.id as Method)}>{m.label}</button>)}</div>
           </div>
           <div className="campo"><span>Quem pagou</span>
-            <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
+            <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { if (!salvando) { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) } }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
           </div>
-          <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />
-          <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0}>Marcar como paga</button>
+          <EscolherConta value={conta} onChange={salvando ? () => {} : setConta} titulo="Saiu de qual conta" />
+          <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0 || salvando}>
+            {salvando ? 'Salvando…' : 'Marcar como paga'}
+          </button>
         </>
       )}
     </Sheet>
@@ -572,8 +587,24 @@ function Cartoes({ month }: { month: string }) {
           )
         })()}
       </Sheet>
-      <PagarFatura cartao={pagar} month={month} onClose={() => setPagar(null)} />
-      <ValorAnterior cartao={anterior} month={month} onClose={() => setAnterior(null)} />
+      <PagarFatura
+        cartao={pagar}
+        month={month}
+        onClose={() => setPagar(null)}
+        onSucesso={() => {
+          setPagar(null)
+          setFatura(null)
+        }}
+      />
+      <ValorAnterior
+        cartao={anterior}
+        month={month}
+        onClose={() => setAnterior(null)}
+        onSucesso={() => {
+          setAnterior(null)
+          setFatura(null)
+        }}
+      />
       <Lancar open={!!aberto} tx={aberto} onClose={() => setAberto(null)} />
       <EditarCartao cartao={editar} onClose={() => setEditar(null)} />
     </>
@@ -629,9 +660,10 @@ function ProximosVencimentos({ card, onAbrir }: { card: Card; onAbrir: (t: Tx) =
 }
 
 /** Pagar fatura: o valor sai da conta escolhida e abate do que falta na fatura */
-function PagarFatura({ cartao, month, onClose }: { cartao: Card | null; month: string; onClose: () => void }) {
+function PagarFatura({ cartao, month, onClose, onSucesso }: { cartao: Card | null; month: string; onClose: () => void; onSucesso?: () => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [id, setId] = useState<string | null>(null)
   const [quem, setQuem] = useState<string | null>(null)
   const [conta, setConta] = useState<string | null>(null)
@@ -639,57 +671,86 @@ function PagarFatura({ cartao, month, onClose }: { cartao: Card | null; month: s
   if (cartao && id !== cartao.id) {
     setId(cartao.id); c.set(invoice(cartao, month, s.txs, s.cardPays).falta)
     setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setDia(today())
+    setSalvando(false)
   }
   if (!cartao && id) setId(null)
   const falta = cartao ? invoice(cartao, month, s.txs, s.cardPays).falta : 0
   const pagar = async () => {
-    if (!cartao || c.value <= 0) return
-    const { error } = await supabase.from('card_payments').insert({ card_id: cartao.id, account_id: conta, amount: c.value, month, paid_on: dia, member_id: quem })
-    if (error) return s.toast(say(error), 'erro')
-    const resto = Math.max(0, falta - c.value)
-    s.toast(resto > 0 ? `Pago ${money(c.value)} · faltam ${money(resto)}` : `Fatura do ${cartao.name} paga`)
-    await s.reload(); onClose()
+    if (salvando || !cartao || c.value <= 0) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('card_payments').insert({ card_id: cartao.id, account_id: conta, amount: c.value, month, paid_on: dia, member_id: quem })
+      if (error) {
+        setSalvando(false)
+        return s.toast(say(error), 'erro')
+      }
+      const resto = Math.max(0, falta - c.value)
+      s.toast(resto > 0 ? `Pago ${money(c.value)} · faltam ${money(resto)}` : `Fatura do ${cartao.name} paga com sucesso!`)
+      await s.reload()
+      if (onSucesso) onSucesso()
+      else onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao registrar pagamento', 'erro')
+    }
   }
   return (
-    <Sheet open={!!cartao} onClose={onClose} title={cartao ? `Pagar ${cartao.name}` : ''}>
+    <Sheet open={!!cartao} onClose={salvando ? () => {} : onClose} title={cartao ? `Pagar ${cartao.name}` : ''}>
       <p className="leve pequeno" style={{ margin: 0 }}>Falta {money(falta)} na fatura de {monthName(month)}. Pagou só uma parte? Digite o valor pago.</p>
       <div className="visor entra cabe"><Cartaz value={c.value} size="g" /></div>
-      <Teclado onKey={c.press} />
+      <Teclado onKey={salvando ? () => {} : c.press} />
       <div className="campo"><span>Quem pagou</span>
-        <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
+        <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { if (!salvando) { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) } }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
       </div>
-      <EscolherConta value={conta} onChange={setConta} titulo="Saiu de qual conta" />
-      <label className="campo"><span>Dia</span><input className="entrada" type="date" value={dia} onChange={e => setDia(e.target.value || today())} /></label>
-      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0}>Pagar {money(c.value)}</button>
+      <EscolherConta value={conta} onChange={salvando ? () => {} : setConta} titulo="Saiu de qual conta" />
+      <label className="campo"><span>Dia</span><input className="entrada" type="date" value={dia} onChange={e => setDia(e.target.value || today())} disabled={salvando} /></label>
+      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0 || salvando}>
+        {salvando ? 'Salvando…' : `Salvar pagamento · ${money(c.value)}`}
+      </button>
     </Sheet>
   )
 }
 
 /** Valor que já estava na fatura antes de usar o app (entra como uma compra só) */
-function ValorAnterior({ cartao, month, onClose }: { cartao: Card | null; month: string; onClose: () => void }) {
+function ValorAnterior({ cartao, month, onClose, onSucesso }: { cartao: Card | null; month: string; onClose: () => void; onSucesso?: () => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [id, setId] = useState<string | null>(null)
-  if (cartao && id !== cartao.id) { setId(cartao.id); c.set(0) }
+  if (cartao && id !== cartao.id) { setId(cartao.id); c.set(0); setSalvando(false) }
   if (!cartao && id) setId(null)
   const salvar = async () => {
-    if (!cartao || c.value <= 0) return
-    const { error } = await supabase.from('transactions').insert({
-      kind: 'out', amount: c.value, description: 'Valor de antes do app', method: 'credito', card_id: cartao.id,
-      month, occurred_on: today(), installment: 1, installments: 1, member_id: null,
-    })
-    if (error) return s.toast(say(error), 'erro')
-    s.toast(`${money(c.value)} somado à fatura de ${monthShort(month)}`); await s.reload(); onClose()
+    if (salvando || !cartao || c.value <= 0) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('transactions').insert({
+        kind: 'out', amount: c.value, description: 'Valor de antes do app', method: 'credito', card_id: cartao.id,
+        month, occurred_on: today(), installment: 1, installments: 1, member_id: null,
+      })
+      if (error) {
+        setSalvando(false)
+        return s.toast(say(error), 'erro')
+      }
+      s.toast(`${money(c.value)} somado à fatura de ${monthShort(month)}`)
+      await s.reload()
+      if (onSucesso) onSucesso()
+      else onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao somar à fatura', 'erro')
+    }
   }
   return (
-    <Sheet open={!!cartao} onClose={onClose} title="Valor de antes do app">
+    <Sheet open={!!cartao} onClose={salvando ? () => {} : onClose} title="Valor de antes do app">
       <p className="leve pequeno" style={{ margin: 0 }}>
         Quanto já estava na fatura de {monthName(month)} do {cartao?.name} antes de vocês começarem a lançar aqui.
         Tem parcelas para os próximos meses? Troque o mês no topo e lance a de cada fatura.
       </p>
       <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
-      <Teclado onKey={c.press} />
-      <button className="btn cheio" style={{ marginTop: 20 }} onClick={salvar} disabled={c.value <= 0}>Somar à fatura</button>
+      <Teclado onKey={salvando ? () => {} : c.press} />
+      <button className="btn cheio" style={{ marginTop: 20 }} onClick={salvar} disabled={c.value <= 0 || salvando}>
+        {salvando ? 'Salvando…' : 'Somar à fatura'}
+      </button>
     </Sheet>
   )
 }
