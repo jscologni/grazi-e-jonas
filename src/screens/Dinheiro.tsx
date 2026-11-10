@@ -229,9 +229,7 @@ function Lancamentos({ month }: { month: string }) {
                       style={{
                         height: '100%',
                         borderRadius: 0,
-                        background: ativa
-                          ? 'linear-gradient(90deg, #EC4899 0%, #FF6B4A 100%)'
-                          : 'linear-gradient(90deg, #7C3AED 0%, #EC4899 52%, #FF6B4A 100%)'
+                        background: ativa ? 'var(--tomate)' : 'var(--abobora)'
                       }}
                     />
                   </div>
