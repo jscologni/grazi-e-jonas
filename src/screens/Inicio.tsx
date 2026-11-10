@@ -37,7 +37,7 @@ export function Inicio({ ir }: { ir: Ir }) {
   }, [bancos])
 
   return (
-    <div className="page">
+    <div className="page page-inicio">
       <div className="topo" style={{ alignItems: 'center' }}>
         <div>
           <p className="leve" style={{ margin: 0, fontWeight: 600 }}>{saudacao()},</p>
@@ -50,7 +50,7 @@ export function Inicio({ ir }: { ir: Ir }) {
       </div>
 
       {/* Card Financeiro Unificado (Sunset Glow) */}
-      <div className="card-financeiro" style={{ marginTop: 6 }}>
+      <div className="card-financeiro">
         <button
           onClick={() => ir('dinheiro')}
           className="card-financeiro-topo"
@@ -111,15 +111,15 @@ export function Inicio({ ir }: { ir: Ir }) {
 
       {!s.txs.some(t => t.import_id && t.month === mes) && (
         <button
-          className="btn fantasma cheio"
-          style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          className="btn fantasma cheio btn-extrato-inicio"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           onClick={() => setExtrato(true)}
         >
           <FileSpreadsheet size={18} /> Colocar o extrato do mês
         </button>
       )}
 
-      <div className="grade2" style={{ marginTop: 16 }}>
+      <div className="grade2">
         <button className="card-acao feira" onClick={() => ir('lista')}>
           <div className="card-acao-glow" />
           <div className="card-acao-header">

@@ -61,7 +61,7 @@ export default function App() {
 
   const faltam = s.items.filter(i => !i.checked).length
   return (
-    <div className="app">
+    <div className={`app ${aba === 'inicio' ? 'app-inicio' : ''}`}>
       {(!s.online || s.pendentes > 0) && (
         <div className="offline" role="status">
           {!s.online ? 'Sem internet. A lista continua funcionando' : 'Enviando mudanças da lista'}
@@ -69,7 +69,7 @@ export default function App() {
         </div>
       )}
       <AnimatePresence mode="wait">
-        <motion.main key={aba} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+        <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
           {aba === 'inicio' && <Inicio ir={ir} />}
           {aba === 'lista' && <Lista />}
           {aba === 'dinheiro' && <Dinheiro month={mes} setMonth={setMes} />}

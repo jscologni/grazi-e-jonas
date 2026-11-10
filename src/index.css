@@ -72,6 +72,92 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 @media (min-width: 560px) { .app { box-shadow: 0 0 0 1px var(--linha); } }
 .page { padding: calc(env(safe-area-inset-top) + 18px) 16px 0; }
 
+/* ---------------------------------------------------------------- tela de início fixa em 100dvh (sem rolagem) */
+.app.app-inicio {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  padding-bottom: calc(var(--barra) + env(safe-area-inset-bottom) + 6px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.app.app-inicio .main-inicio {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.page.page-inicio {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: calc(env(safe-area-inset-top) + clamp(8px, 1.8vh, 16px)) 16px clamp(6px, 1.2vh, 10px);
+}
+.page-inicio .topo {
+  margin-bottom: clamp(6px, 1.4vh, 14px);
+  flex-shrink: 0;
+}
+.page-inicio .card-financeiro {
+  margin-top: 0;
+  margin-bottom: clamp(4px, 1vh, 10px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex-shrink: 1;
+}
+.page-inicio .card-financeiro-topo {
+  padding: clamp(14px, 1.8vh, 18px) 18px;
+  flex-shrink: 0;
+}
+.page-inicio .card-financeiro-contas {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: clamp(140px, 28vh, 260px);
+}
+.page-inicio .card-financeiro-linha {
+  padding: clamp(8px, 1.2vh, 11px) 16px;
+  min-height: clamp(42px, 5.2vh, 52px);
+  flex-shrink: 0;
+}
+.page-inicio .card-financeiro-icone {
+  width: clamp(32px, 4.2vh, 38px);
+  height: clamp(32px, 4.2vh, 38px);
+}
+.page-inicio .btn-extrato-inicio {
+  margin-top: clamp(4px, 0.8vh, 8px);
+  margin-bottom: 0;
+  padding: clamp(6px, 1vh, 10px) 14px;
+  font-size: clamp(12px, 1.5vh, 14px);
+  flex-shrink: 0;
+}
+.page-inicio .grade2 {
+  margin-top: auto;
+  gap: clamp(8px, 1.4vw, 12px);
+  flex-shrink: 0;
+}
+.page-inicio .card-acao {
+  min-height: clamp(100px, 14vh, 138px);
+  padding: clamp(12px, 1.6vh, 16px) 16px;
+}
+.page-inicio .card-acao-numero {
+  font-size: clamp(32px, 4.6vh, 44px);
+}
+.page-inicio .card-acao-desc {
+  font-size: clamp(11.5px, 1.5vh, 13px);
+}
+.page-inicio .card-acao-fundo-decor {
+  font-size: clamp(36px, 4.8vh, 46px);
+}
+
 /* ---------------------------------------------------------------- tipografia */
 .titulo { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; margin: 0; letter-spacing: -0.01em; }
 .subtitulo { font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; margin: 0; }
