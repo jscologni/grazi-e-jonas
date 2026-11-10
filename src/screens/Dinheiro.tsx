@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
 import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, saldoVale, summary, type BillState } from '../lib/finance'
@@ -129,9 +129,29 @@ export function Etiqueta({
 function Lancamentos({ month }: { month: string }) {
   const s = useStore()
   const [filtro, setFiltro] = useState<'todos' | 'in' | 'out' | string>('todos')
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string | null>(null)
   const [aberto, setAberto] = useState<Tx | null>(null)
+  const lancamentosRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setCategoriaFiltro(null)
+  }, [month])
+
   const doMes = s.txs.filter(t => t.month === month)
-  const lista = doMes.filter(t => filtro === 'todos' || t.kind === filtro || t.member_id === filtro)
+
+  const lista = useMemo(() => {
+    return doMes.filter(t => {
+      if (categoriaFiltro) {
+        const cId = t.category_id ?? '-'
+        if (cId !== categoriaFiltro) return false
+      }
+      if (filtro === 'in') return t.kind === 'in'
+      if (filtro === 'out') return t.kind === 'out'
+      if (filtro !== 'todos') return t.member_id === filtro
+      return true
+    })
+  }, [doMes, categoriaFiltro, filtro])
+
   const porDia = useMemo(() => {
     const m = new Map<string, Tx[]>()
     for (const t of lista) m.set(t.occurred_on, [...(m.get(t.occurred_on) ?? []), t])
@@ -147,36 +167,135 @@ function Lancamentos({ month }: { month: string }) {
   const totalSaiu = porCategoria.reduce((a, [, v]) => a + v, 0)
   const cat = (id: string | null) => s.categories.find(k => k.id === id)
 
+  const alternarCategoria = (id: string) => {
+    if (categoriaFiltro === id) {
+      setCategoriaFiltro(null)
+    } else {
+      setCategoriaFiltro(id)
+      if (filtro === 'in') setFiltro('todos')
+      setTimeout(() => {
+        lancamentosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
+  }
+
   return (
     <>
       {porCategoria.length > 0 && (
         <>
-          <div className="secao"><h2 className="subtitulo">Para onde foi</h2><span className="pequeno leve num">{money(totalSaiu)}</span></div>
-          <div className="bloco papel" role="table" aria-label="Gastos por categoria">
-            {porCategoria.slice(0, 7).map(([id, v]) => (
-              <div key={id} role="row" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 10px', marginBottom: 12 }}>
-                <span role="cell" style={{ fontWeight: 650 }}>{cat(id)?.emoji ?? '📦'} {cat(id)?.name ?? 'Sem categoria'}</span>
-                <span role="cell" className="num" style={{ fontWeight: 750 }}>{money(v)} <span className="leve pequeno">{Math.round((v / totalSaiu) * 100)}%</span></span>
-                <div style={{ gridColumn: '1 / -1', height: 8, borderRadius: 0, background: 'var(--chao)' }} aria-hidden>
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${(v / maior) * 100}%` }} transition={{ duration: 0.5 }}
-                    style={{ height: '100%', borderRadius: 0, background: 'linear-gradient(90deg, #7C3AED 0%, #EC4899 52%, #FF6B4A 100%)' }} />
-                </div>
-              </div>
-            ))}
+          <div className="secao">
+            <h2 className="subtitulo">Para onde foi</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {categoriaFiltro && (
+                <button
+                  type="button"
+                  className="link pequeno"
+                  style={{ color: 'var(--tomate)', fontWeight: 700 }}
+                  onClick={() => setCategoriaFiltro(null)}
+                >
+                  Ver todas
+                </button>
+              )}
+              <span className="pequeno leve num">{money(totalSaiu)}</span>
+            </div>
+          </div>
+          <div className="bloco papel" role="region" aria-label="Gastos por categoria" style={{ padding: 8 }}>
+            {porCategoria.slice(0, 7).map(([id, v]) => {
+              const ativa = categoriaFiltro === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => alternarCategoria(id)}
+                  className={`linha-categoria-filtro ${ativa ? 'ativa' : ''}`}
+                  aria-pressed={ativa}
+                  title={ativa ? 'Remover filtro' : `Filtrar por ${cat(id)?.name ?? 'Sem categoria'}`}
+                >
+                  <div className="linha-cat-topo">
+                    <span className="linha-cat-nome">
+                      <span style={{ fontSize: 18 }} aria-hidden>{cat(id)?.emoji ?? '📦'}</span>
+                      <span>{cat(id)?.name ?? 'Sem categoria'}</span>
+                      {ativa && <span className="linha-cat-badge">FILTRADO</span>}
+                    </span>
+                    <span className="num linha-cat-valor">
+                      {money(v)} <span className="leve pequeno">{Math.round((v / totalSaiu) * 100)}%</span>
+                    </span>
+                  </div>
+                  <div className="linha-cat-barra" aria-hidden>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(v / maior) * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                      style={{
+                        height: '100%',
+                        borderRadius: 0,
+                        background: ativa
+                          ? 'linear-gradient(90deg, #EC4899 0%, #FF6B4A 100%)'
+                          : 'linear-gradient(90deg, #7C3AED 0%, #EC4899 52%, #FF6B4A 100%)'
+                      }}
+                    />
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </>
       )}
 
-      <div className="secao"><h2 className="subtitulo">Lançamentos</h2></div>
+      <div className="secao" ref={lancamentosRef}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <h2 className="subtitulo">Lançamentos</h2>
+          {categoriaFiltro && (
+            <span className="pequeno leve num">
+              ({lista.length} {lista.length === 1 ? 'item' : 'itens'} • {money(lista.reduce((a, t) => a + +t.amount, 0))})
+            </span>
+          )}
+        </div>
+        {categoriaFiltro && (
+          <button
+            type="button"
+            className="chip tomate"
+            style={{ minHeight: 30, padding: '0 10px', fontSize: 12.5 }}
+            onClick={() => setCategoriaFiltro(null)}
+            title="Limpar filtro de categoria"
+          >
+            {cat(categoriaFiltro)?.emoji ?? '📦'} {cat(categoriaFiltro)?.name ?? 'Sem categoria'} ✕
+          </button>
+        )}
+      </div>
+
       <div className="chips rola" style={{ marginBottom: 10 }}>
         <button className="chip" aria-pressed={filtro === 'todos'} onClick={() => setFiltro('todos')}>Todos</button>
         <button className="chip folha" aria-pressed={filtro === 'in'} onClick={() => setFiltro('in')}>Entradas</button>
         <button className="chip tomate" aria-pressed={filtro === 'out'} onClick={() => setFiltro('out')}>Saídas</button>
-        {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={filtro === m.user_id} onClick={() => setFiltro(m.user_id)}>
-          <Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}
+        {s.members.map(m => (
+          <button key={m.user_id} className="chip" aria-pressed={filtro === m.user_id} onClick={() => setFiltro(m.user_id)}>
+            <Adesivo fruit={m.fruit} size={20} /> {m.name}
+          </button>
+        ))}
       </div>
 
-      {porDia.length === 0 && <div className="vazio"><span className="emoji">🪙</span>Nada lançado em {monthName(month)}. Toque em <b>Lançar</b> para anotar o primeiro ganho ou gasto.</div>}
+      {porDia.length === 0 && (
+        <div className="vazio">
+          <span className="emoji">{categoriaFiltro ? '🔍' : '🪙'}</span>
+          {categoriaFiltro ? (
+            <>
+              Nenhum lançamento em <b>{cat(categoriaFiltro)?.name ?? 'Sem categoria'}</b> para os filtros selecionados.
+              <br />
+              <button
+                type="button"
+                className="btn pequeno fantasma"
+                style={{ marginTop: 12 }}
+                onClick={() => { setCategoriaFiltro(null); setFiltro('todos') }}
+              >
+                Ver todos os lançamentos
+              </button>
+            </>
+          ) : (
+            <>Nada lançado em {monthName(month)}. Toque em <b>Lançar</b> para anotar o primeiro ganho ou gasto.</>
+          )}
+        </div>
+      )}
       {porDia.map(([dia, txs]) => (
         <div key={dia} style={{ marginBottom: 14 }}>
           <div className="pequeno" style={{ fontWeight: 750, margin: '0 4px 6px' }}>{dia === today() ? 'Hoje' : dayMonth(dia)}</div>
