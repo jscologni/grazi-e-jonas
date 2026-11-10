@@ -1,4 +1,3 @@
-import { motion, AnimatePresence } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Aba } from '../Menu'
 
@@ -43,6 +42,7 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
   const [pullY, setPullY] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [isPulling, setIsPulling] = useState(false)
 
   const pullYRef = useRef(0)
   const refreshingRef = useRef(false)
@@ -55,9 +55,9 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
     let startY = 0
     let startX = 0
     let tracking = false
-    let isPulling = false
+    let pulling = false
 
-    const isAtTop = () => {
+    const isPageAtTop = () => {
       const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0
       return scrollY <= 3
     }
@@ -78,12 +78,12 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
         el = el.parentElement
       }
 
-      if (isAtTop()) {
+      if (isPageAtTop()) {
         const touch = e.touches[0]
         startY = touch.clientY
         startX = touch.clientX
         tracking = true
-        isPulling = false
+        pulling = false
       }
     }
 
@@ -95,23 +95,26 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
       const diffX = touch.clientX - startX
 
       if (diffY > 4) {
-        // Ignora se for claramente um gesto horizontal
-        if (Math.abs(diffX) > 16 && Math.abs(diffX) > diffY * 1.4 && !isPulling) {
+        // Se gesto for predominantemente horizontal, ignora
+        if (Math.abs(diffX) > 18 && Math.abs(diffX) > diffY * 1.4 && !pulling) {
           tracking = false
           setPullY(0)
+          setIsPulling(false)
           return
         }
 
-        if (isAtTop()) {
-          isPulling = true
+        if (isPageAtTop()) {
+          pulling = true
+          setIsPulling(true)
           if (e.cancelable) e.preventDefault()
-          // Curva elástica com amortecimento
-          const damped = Math.min(95, Math.pow(diffY, 0.78) * 1.75)
+          // Curva de amortecimento suave
+          const damped = Math.min(88, Math.pow(diffY, 0.78) * 1.7)
           setPullY(damped)
         }
-      } else if (diffY < 0 && isPulling) {
+      } else if (diffY < 0 && pulling) {
         setPullY(0)
-        isPulling = false
+        pulling = false
+        setIsPulling(false)
       }
     }
 
@@ -119,13 +122,14 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
       if (!tracking) return
       tracking = false
 
-      if (isPulling) {
-        isPulling = false
+      if (pulling) {
+        pulling = false
+        setIsPulling(false)
         const currentY = pullYRef.current
 
-        if (currentY >= 50 && !refreshingRef.current) {
+        if (currentY >= 48 && !refreshingRef.current) {
           setRefreshing(true)
-          setPullY(62)
+          setPullY(72)
           try {
             if ('vibrate' in navigator) navigator.vibrate?.(20)
             await onRefresh()
@@ -144,13 +148,13 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
       }
     }
 
-    // Suporte também a mouse drag no computador
+    // Suporte também a mouse drag no computador para testes
     let mouseDragging = false
     const onMouseDown = (e: MouseEvent) => {
       if (refreshingRef.current || e.button !== 0) return
       const target = e.target as HTMLElement | null
       if (target?.closest('.sheet, .veu, .toasts, button, input, textarea, a')) return
-      if (!isAtTop()) return
+      if (!isPageAtTop()) return
 
       mouseDragging = true
       startY = e.clientY
@@ -161,8 +165,9 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
       if (!mouseDragging || !tracking || refreshingRef.current) return
       const diffY = e.clientY - startY
       if (diffY > 6) {
-        isPulling = true
-        const damped = Math.min(95, Math.pow(diffY, 0.78) * 1.75)
+        pulling = true
+        setIsPulling(true)
+        const damped = Math.min(88, Math.pow(diffY, 0.78) * 1.7)
         setPullY(damped)
       }
     }
@@ -194,112 +199,88 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
     }
   }, [onRefresh])
 
-  const threshold = pullY >= 50
+  const threshold = pullY >= 48
   const txt = TEXTOS_ABA[aba] ?? TEXTOS_ABA.inicio
+  const progresso = Math.min(1, pullY / 48)
 
-  // Progresso do arrasto de 0 a 1
-  const progresso = Math.min(1, pullY / 50)
   const temTomate = progresso >= 0.25 || refreshing
   const temAbacate = progresso >= 0.50 || refreshing
   const temBanana = progresso >= 0.75 || refreshing
   const temUva = threshold || refreshing
 
+  const alturaAtual = refreshing ? 72 : pullY
+
   return (
-    <div
-      className={isInicio ? 'ptr-container ptr-inicio' : 'ptr-container ptr-padrao'}
-      style={{ position: 'relative' }}
-    >
-      <AnimatePresence>
-        {(pullY > 6 || refreshing) && (
-          <motion.div
-            className="ptr-palco"
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{
-              opacity: 1,
-              y: refreshing ? 16 : Math.min(32, pullY * 0.5),
-              scale: refreshing ? 1 : Math.min(1.04, 0.94 + progresso * 0.1)
-            }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          >
-            {/* Cordão elástico decorativo da feira */}
-            <svg
-              className="ptr-corda-svg"
-              viewBox="0 0 360 48"
-              preserveAspectRatio="none"
-              aria-hidden
-            >
-              <path
-                d={`M 0,0 Q 180,${Math.min(42, Math.max(8, pullY * 0.6))} 360,0`}
-                fill="none"
-                stroke="var(--folha)"
-                strokeWidth="2.5"
-                strokeDasharray="4 3"
-                opacity={0.5}
-              />
-            </svg>
-
-            {/* Cartaz animado da cesta de feira / casa */}
-            <div className={`ptr-cartaz ${threshold ? 'pronto' : ''} ${refreshing ? 'girando' : ''} ${success ? 'sucesso' : ''}`}>
-              <div className="ptr-cesta-area">
-                <span className="ptr-cesta-base" role="img" aria-label="Cesta de feira">
-                  {success ? txt.iconeFim : '🧺'}
-                </span>
-
-                {/* Frutas saltitantes que entram na cesta com a puxada */}
-                <span className={`ptr-fruta f-tomate ${temTomate ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
-                  🍅
-                </span>
-                <span className={`ptr-fruta f-abacate ${temAbacate ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
-                  🥑
-                </span>
-                <span className={`ptr-fruta f-banana ${temBanana ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
-                  🍌
-                </span>
-                {temUva && (
-                  <span className={`ptr-fruta f-uva ativa ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
-                    🍇
-                  </span>
-                )}
-                {threshold && !success && (
-                  <span className="ptr-brilho-pop" aria-hidden>✨</span>
-                )}
-              </div>
-
-              <div className="ptr-texto-area">
-                <span className="ptr-mensagem">
-                  {success
-                    ? txt.sucesso
-                    : refreshing
-                      ? txt.carregando
-                      : threshold
-                        ? txt.solte
-                        : txt.puxando}
-                </span>
-                <span className="ptr-sub">
-                  {success
-                    ? 'Sincronizado'
-                    : refreshing
-                      ? 'Buscando do banco…'
-                      : threshold
-                        ? 'Pode soltar o dedo!'
-                        : `${Math.round(progresso * 100)}% da colheita`}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.div
-        className={isInicio ? 'ptr-content ptr-content-inicio' : 'ptr-content'}
-        animate={{
-          y: refreshing ? 72 : pullY * 0.55
+    <div className={`ptr-wrapper ${isInicio ? 'ptr-wrapper-inicio' : ''}`}>
+      {/* Área expansível no topo do conteúdo (em fluxo natural, nunca sai da tela) */}
+      <div
+        className="ptr-head"
+        style={{
+          height: alturaAtual,
+          transition: isPulling ? 'none' : 'height 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)'
         }}
-        transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+        aria-hidden={alturaAtual === 0}
       >
+        <div
+          className="ptr-head-inner"
+          style={{
+            opacity: pullY > 8 || refreshing ? 1 : Math.max(0, pullY / 8),
+            transform: `scale(${refreshing ? 1 : Math.min(1.05, 0.85 + progresso * 0.18)})`
+          }}
+        >
+          <div className={`ptr-cartaz ${threshold ? 'pronto' : ''} ${refreshing ? 'girando' : ''} ${success ? 'sucesso' : ''}`}>
+            <div className="ptr-cesta-area">
+              <span className="ptr-cesta-base" role="img" aria-label="Cesta">
+                {success ? txt.iconeFim : '🧺'}
+              </span>
+
+              <span className={`ptr-fruta f-tomate ${temTomate ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
+                🍅
+              </span>
+              <span className={`ptr-fruta f-abacate ${temAbacate ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
+                🥑
+              </span>
+              <span className={`ptr-fruta f-banana ${temBanana ? 'ativa' : ''} ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
+                🍌
+              </span>
+              {temUva && (
+                <span className={`ptr-fruta f-uva ativa ${refreshing ? 'malabarismo' : ''}`} aria-hidden>
+                  🍇
+                </span>
+              )}
+              {threshold && !success && (
+                <span className="ptr-brilho-pop" aria-hidden>✨</span>
+              )}
+            </div>
+
+            <div className="ptr-texto-area">
+              <span className="ptr-mensagem">
+                {success
+                  ? txt.sucesso
+                  : refreshing
+                    ? txt.carregando
+                    : threshold
+                      ? txt.solte
+                      : txt.puxando}
+              </span>
+              <span className="ptr-sub">
+                {success
+                  ? 'Sincronizado'
+                  : refreshing
+                    ? 'Buscando do banco…'
+                    : threshold
+                      ? 'Pode soltar o dedo!'
+                      : `${Math.round(progresso * 100)}% da colheita`}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Conteúdo da página */}
+      <div className={isInicio ? 'ptr-content-inicio' : 'ptr-content-padrao'}>
         {children}
-      </motion.div>
+      </div>
     </div>
   )
 }
