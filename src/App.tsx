@@ -69,7 +69,7 @@ export default function App() {
           {s.pendentes > 0 ? ` · ${s.pendentes} ${s.pendentes === 1 ? 'mudança esperando' : 'mudanças esperando'}` : '.'}
         </div>
       )}
-      <PullToRefresh isInicio={aba === 'inicio'} onRefresh={() => s.reload()}>
+      <PullToRefresh aba={aba} onRefresh={() => s.reload()}>
         <AnimatePresence mode="wait">
           <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
             {aba === 'inicio' && <Inicio ir={ir} />}

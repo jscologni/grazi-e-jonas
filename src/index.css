@@ -788,7 +788,7 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
 .link::after { content: ''; position: absolute; inset: -12px -6px; }
 .chip::after { content: ''; position: absolute; inset: -3px 0; }
 
-/* ---------------------------------------------------------------- pull to refresh animado */
+/* ---------------------------------------------------------------- pull to refresh animado: Cesta da Feira */
 .ptr-container {
   touch-action: pan-x pan-y;
 }
@@ -812,51 +812,173 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
   display: flex;
   flex-direction: column;
 }
-.ptr-indicador {
+.ptr-palco {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 8px);
+  top: calc(env(safe-area-inset-top) + 6px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 55;
   pointer-events: none;
+  width: calc(100% - 24px);
+  max-width: 440px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 }
-.ptr-badge {
+.ptr-corda-svg {
+  width: 100%;
+  height: 48px;
+  position: absolute;
+  top: -12px;
+  left: 0;
+  pointer-events: none;
+}
+.ptr-cartaz {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
+  gap: 12px;
+  padding: 8px 16px;
   background: var(--papel);
   color: var(--tinta);
   border: 1px solid var(--linha);
-  box-shadow: var(--sombra);
+  box-shadow: var(--sombra), 0 8px 20px -6px rgba(59, 24, 64, 0.22);
   border-radius: 0;
-  font-size: 12.5px;
-  font-weight: 750;
-  letter-spacing: -0.01em;
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, background-color 0.2s ease;
 }
-.ptr-badge.carregando {
+.ptr-cartaz.pronto {
+  border-color: var(--folha);
+  box-shadow: 0 4px 18px -2px rgba(53, 125, 39, 0.35);
+  transform: scale(1.05);
+}
+.ptr-cartaz.girando {
   border-color: var(--abobora);
 }
-.ptr-badge.solte {
-  border-color: var(--folha);
-  color: var(--folha);
-}
-.ptr-badge.feito {
+.ptr-cartaz.sucesso {
   background: var(--folha-claro);
   border-color: var(--folha);
   color: var(--folha);
 }
-.ptr-ico-spin {
-  animation: girar-ptr 0.8s linear infinite;
-  color: var(--abobora);
+
+.ptr-cesta-area {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  flex: none;
 }
-.ptr-ico-check {
+.ptr-cesta-base {
+  display: block;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.ptr-cartaz.pronto .ptr-cesta-base {
+  transform: scale(1.15) rotate(-5deg);
+}
+.ptr-cartaz.girando .ptr-cesta-base {
+  animation: balanco-cesta 0.85s ease-in-out infinite;
+}
+
+.ptr-fruta {
+  position: absolute;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0) translateY(-14px);
+  transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+.ptr-fruta.f-tomate {
+  top: -4px;
+  left: -2px;
+}
+.ptr-fruta.f-abacate {
+  top: -6px;
+  right: -3px;
+}
+.ptr-fruta.f-banana {
+  top: -9px;
+  left: 11px;
+}
+.ptr-fruta.f-uva {
+  bottom: 0px;
+  right: 6px;
+  font-size: 13px;
+}
+.ptr-fruta.ativa {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.ptr-fruta.malabarismo.f-tomate {
+  animation: malabarismo-1 0.75s ease-in-out infinite;
+}
+.ptr-fruta.malabarismo.f-abacate {
+  animation: malabarismo-2 0.82s ease-in-out infinite 0.15s;
+}
+.ptr-fruta.malabarismo.f-banana {
+  animation: malabarismo-3 0.78s ease-in-out infinite 0.3s;
+}
+.ptr-fruta.malabarismo.f-uva {
+  animation: malabarismo-1 0.72s ease-in-out infinite 0.22s;
+}
+
+.ptr-brilho-pop {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  font-size: 18px;
+  line-height: 1;
+  animation: pulso-brilho 0.6s ease-in-out infinite;
+}
+
+.ptr-texto-area {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.ptr-mensagem {
+  font-weight: 800;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.ptr-cartaz.pronto .ptr-mensagem {
   color: var(--folha);
 }
-@keyframes girar-ptr {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.ptr-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.ptr-cartaz.sucesso .ptr-sub {
+  color: var(--folha);
+  opacity: 0.85;
+}
+
+@keyframes malabarismo-1 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-14deg); }
+}
+@keyframes malabarismo-2 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(16deg); }
+}
+@keyframes malabarismo-3 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-9px) rotate(-8deg); }
+}
+@keyframes balanco-cesta {
+  0%, 100% { transform: rotate(0deg) scale(1.05); }
+  25% { transform: rotate(-5deg) scale(1.08); }
+  75% { transform: rotate(5deg) scale(1.08); }
+}
+@keyframes pulso-brilho {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.35); opacity: 1; }
 }
