@@ -9,6 +9,7 @@ import { Inicio } from './screens/Inicio'
 import { Lancar } from './screens/Lancar'
 import { Lista } from './screens/Lista'
 import { ABAS, Menu, type Aba } from './Menu'
+import { PullToRefresh } from './components/PullToRefresh'
 import { Toasts } from './ui'
 
 const lerAba = (): Aba => {
@@ -68,14 +69,16 @@ export default function App() {
           {s.pendentes > 0 ? ` · ${s.pendentes} ${s.pendentes === 1 ? 'mudança esperando' : 'mudanças esperando'}` : '.'}
         </div>
       )}
-      <AnimatePresence mode="wait">
-        <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
-          {aba === 'inicio' && <Inicio ir={ir} />}
-          {aba === 'lista' && <Lista />}
-          {aba === 'dinheiro' && <Dinheiro month={mes} setMonth={setMes} />}
-          {aba === 'casa' && <CasaTela />}
-        </motion.main>
-      </AnimatePresence>
+      <PullToRefresh isInicio={aba === 'inicio'} onRefresh={() => s.reload()}>
+        <AnimatePresence mode="wait">
+          <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+            {aba === 'inicio' && <Inicio ir={ir} />}
+            {aba === 'lista' && <Lista />}
+            {aba === 'dinheiro' && <Dinheiro month={mes} setMonth={setMes} />}
+            {aba === 'casa' && <CasaTela />}
+          </motion.main>
+        </AnimatePresence>
+      </PullToRefresh>
 
       {(aba === 'inicio' || aba === 'dinheiro') && (
         <button className={`fab ${fabVisivel ? '' : 'escondido'}`} onClick={() => setLancar(true)}><span className="mais" aria-hidden>+</span> Lançar</button>

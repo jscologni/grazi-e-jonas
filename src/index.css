@@ -25,8 +25,8 @@
   --raio-g: 0px;
   --raio-m: 0px;
   --raio-p: 0px;
-  --display: 'Bagel Fat One', 'Plus Jakarta Sans', system-ui, sans-serif;
-  --texto: 'Plus Jakarta Sans', 'Rethink Sans', system-ui, sans-serif;
+  --display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --texto: 'Plus Jakarta Sans', system-ui, sans-serif;
   --barra: 82px;
   color-scheme: light;
 }
@@ -98,7 +98,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   overflow: hidden;
   box-sizing: border-box;
   padding: calc(env(safe-area-inset-top) + clamp(8px, 1.8vh, 16px)) 16px clamp(6px, 1.2vh, 10px);
@@ -109,7 +109,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 }
 .page-inicio .card-financeiro {
   margin-top: 0;
-  margin-bottom: clamp(4px, 1vh, 10px);
+  margin-bottom: clamp(6px, 1.2vh, 12px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -122,7 +122,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .page-inicio .card-financeiro-contas {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-height: clamp(140px, 28vh, 260px);
+  max-height: clamp(130px, 24vh, 230px);
 }
 .page-inicio .card-financeiro-linha {
   padding: clamp(8px, 1.2vh, 11px) 16px;
@@ -133,16 +133,17 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   width: clamp(32px, 4.2vh, 38px);
   height: clamp(32px, 4.2vh, 38px);
 }
+.page-inicio .grade2 {
+  margin-top: 0;
+  margin-bottom: clamp(6px, 1.2vh, 12px);
+  gap: clamp(8px, 1.4vw, 12px);
+  flex-shrink: 0;
+}
 .page-inicio .btn-extrato-inicio {
-  margin-top: clamp(4px, 0.8vh, 8px);
+  margin-top: 0;
   margin-bottom: 0;
   padding: clamp(6px, 1vh, 10px) 14px;
   font-size: clamp(12px, 1.5vh, 14px);
-  flex-shrink: 0;
-}
-.page-inicio .grade2 {
-  margin-top: auto;
-  gap: clamp(8px, 1.4vw, 12px);
   flex-shrink: 0;
 }
 .page-inicio .card-acao {
@@ -786,3 +787,76 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
 .lupa::after { content: ''; position: absolute; inset: -5px; }
 .link::after { content: ''; position: absolute; inset: -12px -6px; }
 .chip::after { content: ''; position: absolute; inset: -3px 0; }
+
+/* ---------------------------------------------------------------- pull to refresh animado */
+.ptr-container {
+  touch-action: pan-x pan-y;
+}
+.ptr-inicio {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ptr-padrao {
+  width: 100%;
+}
+.ptr-content {
+  width: 100%;
+}
+.ptr-content-inicio {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ptr-indicador {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+.ptr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: var(--papel);
+  color: var(--tinta);
+  border: 1px solid var(--linha);
+  box-shadow: var(--sombra);
+  border-radius: 0;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.ptr-badge.carregando {
+  border-color: var(--abobora);
+}
+.ptr-badge.solte {
+  border-color: var(--folha);
+  color: var(--folha);
+}
+.ptr-badge.feito {
+  background: var(--folha-claro);
+  border-color: var(--folha);
+  color: var(--folha);
+}
+.ptr-ico-spin {
+  animation: girar-ptr 0.8s linear infinite;
+  color: var(--abobora);
+}
+.ptr-ico-check {
+  color: var(--folha);
+}
+@keyframes girar-ptr {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

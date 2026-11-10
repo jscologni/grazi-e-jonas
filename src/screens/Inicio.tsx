@@ -109,19 +109,8 @@ export function Inicio({ ir }: { ir: Ir }) {
         )}
       </div>
 
-      {!s.txs.some(t => t.import_id && t.month === mes) && (
-        <button
-          className="btn fantasma cheio btn-extrato-inicio"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          onClick={() => setExtrato(true)}
-        >
-          <FileSpreadsheet size={18} /> Colocar o extrato do mês
-        </button>
-      )}
-
       <div className="grade2">
         <button className="card-acao feira" onClick={() => ir('lista')}>
-          <div className="card-acao-glow" />
           <div className="card-acao-header">
             <span className="card-acao-tag">Feira</span>
             <div className="card-acao-icone"><ShoppingBasket size={22} /></div>
@@ -134,7 +123,6 @@ export function Inicio({ ir }: { ir: Ir }) {
         </button>
 
         <button className="card-acao tarefas" onClick={() => ir('casa')}>
-          <div className="card-acao-glow" />
           <div className="card-acao-header">
             <span className="card-acao-tag">Tarefas</span>
             <div className="card-acao-icone"><Broom size={22} /></div>
@@ -146,6 +134,16 @@ export function Inicio({ ir }: { ir: Ir }) {
           <div className="card-acao-fundo-decor" aria-hidden>🧹 🗑️ ✨</div>
         </button>
       </div>
+
+      {!s.txs.some(t => t.import_id && t.month === mes) && (
+        <button
+          className="btn fantasma cheio btn-extrato-inicio"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onClick={() => setExtrato(true)}
+        >
+          <FileSpreadsheet size={18} /> Colocar o extrato do mês
+        </button>
+      )}
 
       <Ajustes open={ajustes} onClose={() => setAjustes(false)} />
       <ImportarExtrato open={extrato} onClose={() => setExtrato(false)} />
