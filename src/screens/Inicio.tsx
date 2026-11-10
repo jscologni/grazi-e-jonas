@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, FileSpreadsheet, ShoppingBag, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
+import { Broom, FileSpreadsheet, ShoppingBasket, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
 import { accountBalance, choreStatus } from '../lib/finance'
 import { dayMonth, firstName, money, monthOf } from '../lib/format'
@@ -121,24 +121,29 @@ export function Inicio({ ir }: { ir: Ir }) {
 
       <div className="grade2" style={{ marginTop: 16 }}>
         <button className="card-acao feira" onClick={() => ir('lista')}>
+          <div className="card-acao-glow" />
           <div className="card-acao-header">
             <span className="card-acao-tag">Feira</span>
-            <div className="card-acao-icone"><ShoppingBag size={18} /></div>
+            <div className="card-acao-icone"><ShoppingBasket size={22} /></div>
           </div>
-          <div>
-            <div className="grande">{faltam.length}</div>
-            <div className="pequeno" style={{ opacity: 0.9 }}>{faltam.length === 1 ? 'item falta' : 'itens faltam'}</div>
+          <div className="card-acao-corpo">
+            <div className="card-acao-numero">{faltam.length}</div>
+            <div className="card-acao-desc">{faltam.length === 1 ? 'item na lista' : 'itens na lista'}</div>
           </div>
+          <div className="card-acao-fundo-decor" aria-hidden>🧺 🥖 🧀</div>
         </button>
+
         <button className="card-acao tarefas" onClick={() => ir('casa')}>
+          <div className="card-acao-glow" />
           <div className="card-acao-header">
             <span className="card-acao-tag">Tarefas</span>
-            <div className="card-acao-icone"><CheckCircle2 size={18} /></div>
+            <div className="card-acao-icone"><Broom size={22} /></div>
           </div>
-          <div>
-            <div className="grande">{tarefas.length}</div>
-            <div className="pequeno" style={{ opacity: 0.9 }}>{tarefas.length === 1 ? 'para hoje' : 'para hoje ou atrasadas'}</div>
+          <div className="card-acao-corpo">
+            <div className="card-acao-numero">{tarefas.length}</div>
+            <div className="card-acao-desc">{tarefas.length === 1 ? 'para hoje' : 'para hoje ou atrasadas'}</div>
           </div>
+          <div className="card-acao-fundo-decor" aria-hidden>🧹 🗑️ ✨</div>
         </button>
       </div>
 
