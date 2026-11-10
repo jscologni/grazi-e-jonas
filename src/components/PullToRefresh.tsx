@@ -213,13 +213,14 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
         {(pullY > 6 || refreshing) && (
           <motion.div
             className="ptr-palco"
-            initial={{ opacity: 0, y: -30 }}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{
               opacity: 1,
-              y: refreshing ? 10 : Math.max(0, pullY * 0.75 - 24)
+              y: refreshing ? 16 : Math.min(32, pullY * 0.5),
+              scale: refreshing ? 1 : Math.min(1.04, 0.94 + progresso * 0.1)
             }}
-            exit={{ opacity: 0, y: -30 }}
-            transition={{ type: 'spring', damping: 24, stiffness: 340 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
           >
             {/* Cordão elástico decorativo da feira */}
             <svg
@@ -229,12 +230,12 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
               aria-hidden
             >
               <path
-                d={`M 0,0 Q 180,${Math.min(46, (pullY || 10) * 0.65)} 360,0`}
+                d={`M 0,0 Q 180,${Math.min(42, Math.max(8, pullY * 0.6))} 360,0`}
                 fill="none"
                 stroke="var(--folha)"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeDasharray="4 3"
-                opacity={0.45}
+                opacity={0.5}
               />
             </svg>
 
@@ -293,7 +294,7 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
       <motion.div
         className={isInicio ? 'ptr-content ptr-content-inicio' : 'ptr-content'}
         animate={{
-          y: refreshing ? 58 : pullY * 0.44
+          y: refreshing ? 72 : pullY * 0.55
         }}
         transition={{ type: 'spring', damping: 26, stiffness: 340 }}
       >
