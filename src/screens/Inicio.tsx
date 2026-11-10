@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, FileSpreadsheet, ShoppingBag, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
-import { accountBalance, choreStatus, summary } from '../lib/finance'
+import { accountBalance, choreStatus } from '../lib/finance'
 import { dayMonth, firstName, money, monthOf } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
-import { Adesivo, Sheet } from '../ui'
+import { Adesivo, Cartaz, Sheet } from '../ui'
 import { Escolher, NovaSenha } from './Entrar'
-import { Etiqueta } from './Dinheiro'
 import { ImportarExtrato } from './Extrato'
 
 type Ir = (aba: 'lista' | 'dinheiro' | 'casa') => void
@@ -21,7 +21,6 @@ export function Inicio({ ir }: { ir: Ir }) {
   const [ajustes, setAjustes] = useState(false)
   const [extrato, setExtrato] = useState(false)
   const mes = monthOf(new Date())
-  const res = summary(mes, s.txs, s.moves, s.accounts)
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
@@ -50,63 +49,96 @@ export function Inicio({ ir }: { ir: Ir }) {
         </button>
       </div>
 
-      <button style={{ display: 'block', width: '100%', textAlign: 'left' }} onClick={() => ir('dinheiro')} aria-label="Ver o dinheiro do mês">
-        <Etiqueta month={mes} {...res} saldo={bancos.length ? nasContas : null} somenteSaldo />
-      </button>
+      {/* Card Financeiro Unificado (Sunset Glow) */}
+      <div className="card-financeiro" style={{ marginTop: 6 }}>
+        <button
+          onClick={() => ir('dinheiro')}
+          className="card-financeiro-topo"
+          aria-label="Ver o dinheiro da casa"
+        >
+          <div className="card-financeiro-rotulo">
+            <span>Saldo total nas contas</span>
+            <Sparkles size={16} className="card-financeiro-brilho" />
+          </div>
+          <div className="card-financeiro-valor cabe">
+            <Cartaz value={nasContas} size="xg" />
+          </div>
+        </button>
 
-      {bancos.length > 0 && (
-        <div className="folha-lista" style={{ marginTop: 14 }}>
-          {contasOrdenadas.map(a => {
-            const v = accountBalance(a, s.txs, s.cardPays)
-            const dono = s.member(a.owner)
-            const ehVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
-            return (
-              <button
-                className="linha"
-                key={a.id}
-                onClick={() => ir('dinheiro')}
-                style={{ minHeight: 52 }}
-              >
-                {ehVale ? (
-                  <span style={{ fontSize: 22 }} aria-hidden>🍽️</span>
-                ) : dono ? (
-                  <Adesivo fruit={dono.fruit} size={26} />
-                ) : (
-                  <span style={{ fontSize: 22 }} aria-hidden>🏦</span>
-                )}
-                <div className="meio">
-                  <div className="nome">{a.name}</div>
-                  <div className="info">
-                    {ehVale
-                      ? (dono ? `Vale alimentação • ${dono.name}` : 'Vale alimentação')
-                      : (dono ? dono.name : 'Conta da casa')}
+        {bancos.length > 0 && (
+          <div className="card-financeiro-contas">
+            {contasOrdenadas.map(a => {
+              const v = accountBalance(a, s.txs, s.cardPays)
+              const dono = s.member(a.owner)
+              const ehVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+              return (
+                <button
+                  className="card-financeiro-linha"
+                  key={a.id}
+                  onClick={() => ir('dinheiro')}
+                >
+                  <div
+                    className="card-financeiro-icone"
+                    style={{
+                      background: ehVale ? 'var(--folha-claro)' : dono ? 'var(--uva-claro)' : 'var(--chao)'
+                    }}
+                  >
+                    {ehVale ? (
+                      <UtensilsCrossed size={18} style={{ color: 'var(--folha)' }} />
+                    ) : dono ? (
+                      <Adesivo fruit={dono.fruit} size={24} />
+                    ) : (
+                      <Wallet size={18} style={{ color: 'var(--uva)' }} />
+                    )}
                   </div>
-                </div>
-                <span className={`valor ${v < 0 ? 'sai' : 'entra'}`} style={v < 0 ? { color: 'var(--tomate)' } : undefined}>
-                  {money(v)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+                  <div className="meio">
+                    <div className="nome">{a.name}</div>
+                    <div className="info">
+                      {ehVale
+                        ? (dono ? `Vale alimentação • ${dono.name}` : 'Vale alimentação')
+                        : (dono ? dono.name : 'Conta da casa')}
+                    </div>
+                  </div>
+                  <span className={`valor ${v < 0 ? 'sai' : 'entra'}`} style={v < 0 ? { color: 'var(--tomate)' } : undefined}>
+                    {money(v)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {!s.txs.some(t => t.import_id && t.month === mes) && (
-        <button className="btn fantasma cheio" style={{ marginTop: 12 }} onClick={() => setExtrato(true)}>📄 Colocar o extrato do mês</button>
+        <button
+          className="btn fantasma cheio"
+          style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onClick={() => setExtrato(true)}
+        >
+          <FileSpreadsheet size={18} /> Colocar o extrato do mês
+        </button>
       )}
 
-      <div className="grade2" style={{ marginTop: 20 }}>
-        <button className="bloco tomate" style={{ textAlign: 'left', minHeight: 128 }} onClick={() => ir('lista')}>
-          <div style={{ fontWeight: 700 }}>Feira</div>
-          <div className="grande">{faltam.length}</div>
-          <div className="pequeno" style={{ opacity: 0.9 }}>{faltam.length === 1 ? 'item falta' : 'itens faltam'}</div>
-          <span className="emoji-fundo" aria-hidden>🧺</span>
+      <div className="grade2" style={{ marginTop: 16 }}>
+        <button className="card-acao feira" onClick={() => ir('lista')}>
+          <div className="card-acao-header">
+            <span className="card-acao-tag">Feira</span>
+            <div className="card-acao-icone"><ShoppingBag size={18} /></div>
+          </div>
+          <div>
+            <div className="grande">{faltam.length}</div>
+            <div className="pequeno" style={{ opacity: 0.9 }}>{faltam.length === 1 ? 'item falta' : 'itens faltam'}</div>
+          </div>
         </button>
-        <button className="bloco folha" style={{ textAlign: 'left', minHeight: 128 }} onClick={() => ir('casa')}>
-          <div style={{ fontWeight: 700 }}>Tarefas</div>
-          <div className="grande">{tarefas.length}</div>
-          <div className="pequeno" style={{ opacity: 0.9 }}>{tarefas.length === 1 ? 'para hoje' : 'para hoje ou atrasadas'}</div>
-          <span className="emoji-fundo" aria-hidden>🧹</span>
+        <button className="card-acao tarefas" onClick={() => ir('casa')}>
+          <div className="card-acao-header">
+            <span className="card-acao-tag">Tarefas</span>
+            <div className="card-acao-icone"><CheckCircle2 size={18} /></div>
+          </div>
+          <div>
+            <div className="grande">{tarefas.length}</div>
+            <div className="pequeno" style={{ opacity: 0.9 }}>{tarefas.length === 1 ? 'para hoje' : 'para hoje ou atrasadas'}</div>
+          </div>
         </button>
       </div>
 

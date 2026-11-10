@@ -1,49 +1,48 @@
-/* Grazi e Jonas: a feira como sistema visual.
-   Fundo pistache, tinta berinjela, cores de hortifrúti com papel de cartaz de oferta. */
+/* Grazi e Jonas: visual moderno e refinado com acentos neon Sunset Glow. */
 
 :root {
-  --chao: #EEF3E2;
-  --chao-fundo: #E1EACB;
-  --papel: #FBFDF4;
-  --tinta: #3B1840;
-  --tinta-suave: #6F5A73;
-  --linha: rgba(59, 24, 64, 0.13);
-  --tomate: #C9381F;
-  --tomate-claro: #FCE0D9;
-  --folha: #357D27;
-  --folha-claro: #DCEFCF;
-  --abobora: #F29A1F;
-  --abobora-claro: #FDEBCF;
-  --banana: #FFD43B;
-  --limao: #B8D432;
-  --uva: #7A3E8F;
-  --uva-claro: #EEDDF2;
-  --melancia: #F2667B;
+  --chao: #F8F6FC;
+  --chao-fundo: #EFEBF7;
+  --papel: #FFFFFF;
+  --tinta: #2D1B4E;
+  --tinta-suave: #75678E;
+  --linha: rgba(124, 58, 237, 0.11);
+  --tomate: #FF4D6D;
+  --tomate-claro: #FFE4E8;
+  --folha: #059669;
+  --folha-claro: #D1FAE5;
+  --abobora: #FF7849;
+  --abobora-claro: #FFEDD5;
+  --banana: #FFB703;
+  --limao: #84CC16;
+  --uva: #8B5CF6;
+  --uva-claro: #EDE9FE;
+  --melancia: #FF4D6D;
   --sobre-folha: #FFFFFF;
   --sobre-tomate: #FFFFFF;
-  --sombra: 0 2px 0 rgba(59, 24, 64, 0.16), 0 10px 24px -14px rgba(59, 24, 64, 0.35);
-  --raio-g: 28px;
-  --raio-m: 18px;
+  --sombra: 0 4px 20px -4px rgba(124, 58, 237, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --raio-g: 24px;
+  --raio-m: 16px;
   --raio-p: 12px;
-  --display: 'Bagel Fat One', 'Arial Rounded MT Bold', system-ui, sans-serif;
-  --texto: 'Rethink Sans', system-ui, sans-serif;
+  --display: 'Plus Jakarta Sans', 'Bagel Fat One', system-ui, sans-serif;
+  --texto: 'Plus Jakarta Sans', 'Rethink Sans', system-ui, sans-serif;
   --barra: 82px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
-    --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-    --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
-    --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+    --chao: #0F0919; --chao-fundo: #08040F; --papel: #1A1128; --tinta: #FDF4FF; --tinta-suave: #A78BFA;
+    --linha: rgba(236, 72, 153, 0.18); --tomate: #FB7185; --tomate-claro: #4C0519; --folha: #34D399;
+    --folha-claro: #064E3B; --sobre-folha: #0F0919; --sobre-tomate: #0F0919; --abobora: #FB923C; --abobora-claro: #431407; --uva: #C084FC; --uva-claro: #3B0764;
+    --sombra: 0 4px 24px -4px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
-  --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-  --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
-  --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+  --chao: #0F0919; --chao-fundo: #08040F; --papel: #1A1128; --tinta: #FDF4FF; --tinta-suave: #A78BFA;
+  --linha: rgba(236, 72, 153, 0.18); --tomate: #FB7185; --tomate-claro: #4C0519; --folha: #34D399;
+  --folha-claro: #064E3B; --sobre-folha: #0F0919; --sobre-tomate: #0F0919; --abobora: #FB923C; --abobora-claro: #431407; --uva: #C084FC; --uva-claro: #3B0764;
+  --sombra: 0 4px 24px -4px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
@@ -120,6 +119,132 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .bloco .emoji-fundo { position: absolute; right: -16px; bottom: -20px; font-size: 64px; opacity: 0.9; transform: rotate(-14deg); pointer-events: none; }
 .bloco .grande { font-family: var(--display); font-size: 30px; line-height: 1; }
+
+/* ---------------------------------------------------------------- card financeiro unificado */
+.card-financeiro {
+  background: var(--papel);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra);
+  border: 1px solid var(--linha);
+  overflow: hidden;
+}
+.card-financeiro-topo {
+  width: 100%;
+  text-align: left;
+  padding: 22px 22px 20px;
+  background: linear-gradient(135deg, #7C3AED 0%, #EC4899 52%, #FF6B4A 100%);
+  color: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+  display: block;
+}
+.card-financeiro-topo::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  filter: blur(24px);
+  pointer-events: none;
+}
+.card-financeiro-rotulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 6px;
+}
+.card-financeiro-brilho {
+  color: #FFD43B;
+  opacity: 0.95;
+}
+.card-financeiro-valor {
+  color: #FFFFFF;
+}
+.card-financeiro-valor .cartaz {
+  color: #FFFFFF;
+}
+.card-financeiro-contas {
+  display: flex;
+  flex-direction: column;
+}
+.card-financeiro-linha {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 18px;
+  min-height: 56px;
+  border-top: 1px solid var(--linha);
+  background: var(--papel);
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.card-financeiro-linha:first-child {
+  border-top: none;
+}
+.card-financeiro-linha:active {
+  background: rgba(124, 58, 237, 0.05);
+}
+.card-financeiro-icone {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* cards de ação Feira e Tarefas com gradiente neon */
+.card-acao {
+  text-align: left;
+  min-height: 128px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: var(--raio-g);
+  padding: 16px 18px;
+  box-shadow: var(--sombra);
+  position: relative;
+  overflow: hidden;
+}
+.card-acao.feira {
+  background: linear-gradient(135deg, #FF5E7E 0%, #FF8F6B 100%);
+  color: #FFFFFF;
+}
+.card-acao.tarefas {
+  background: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+  color: #FFFFFF;
+}
+.card-acao-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.card-acao-tag {
+  font-weight: 800;
+  font-size: 13.5px;
+  letter-spacing: 0.02em;
+}
+.card-acao-icone {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
 
 /* ---------------------------------------------------------------- linhas de lista */
 .folha-lista { background: var(--papel); border-radius: var(--raio-m); box-shadow: var(--sombra); overflow: hidden; }
