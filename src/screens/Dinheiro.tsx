@@ -41,21 +41,53 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
 }
 
 /** No mês atual mostra o dinheiro que está nas contas; em outros meses, a sobra daquele mês */
-export function Etiqueta({ month, inicial = 0, entrou, saiu, guardou, sobra, saldo = null, vale = null }: { month: string; inicial?: number; entrou: number; saiu: number; guardou: number; sobra: number; saldo?: number | null; vale?: number | null }) {
+export function Etiqueta({
+  month,
+  inicial = 0,
+  entrou = 0,
+  saiu = 0,
+  guardou = 0,
+  sobra = 0,
+  saldo = null,
+  vale = null,
+  somenteSaldo = false,
+  titulo,
+}: {
+  month?: string
+  inicial?: number
+  entrou?: number
+  saiu?: number
+  guardou?: number
+  sobra?: number
+  saldo?: number | null
+  vale?: number | null
+  somenteSaldo?: boolean
+  titulo?: string
+}) {
   const valor = saldo ?? sobra
+  const rotulo = titulo ?? (somenteSaldo
+    ? 'Saldo total nas contas'
+    : saldo != null
+      ? 'Saldo nas contas'
+      : month && sobra < 0
+        ? `Faltou em ${monthName(month)}`
+        : `Sobra de ${month ? monthName(month) : ''}`)
+
   return (
     <motion.div className={`etiqueta ${valor < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
       transition={{ type: 'spring', damping: 8, stiffness: 120 }}>
-      <div className="rotulo">{saldo != null ? 'Saldo nas contas' : sobra < 0 ? `Faltou em ${monthName(month)}` : `Sobra de ${monthName(month)}`}</div>
+      <div className="rotulo">{rotulo}</div>
       <div className="cabe"><Cartaz value={valor} size="xg" /></div>
-      <div className="linhas">
-        {inicial !== 0 && <span>saldo inicial<b>{money(inicial)}</b></span>}
-        <span>entrou no mês<b>{money(entrou)}</b></span>
-        <span>saiu no mês<b>{money(saiu)}</b></span>
-        {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
-        {saldo != null && <span>sobra do mês<b>{money(sobra)}</b></span>}
-        {saldo != null && vale != null && <span>no cartão alimentação<b>{money(vale)}</b></span>}
-      </div>
+      {!somenteSaldo && (
+        <div className="linhas">
+          {inicial !== 0 && <span>saldo inicial<b>{money(inicial)}</b></span>}
+          <span>entrou no mês<b>{money(entrou)}</b></span>
+          <span>saiu no mês<b>{money(saiu)}</b></span>
+          {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
+          {saldo != null && <span>sobra do mês<b>{money(sobra)}</b></span>}
+          {saldo != null && vale != null && <span>no cartão alimentação<b>{money(vale)}</b></span>}
+        </div>
+      )}
     </motion.div>
   )
 }

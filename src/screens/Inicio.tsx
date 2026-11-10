@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
-import { accountBalance, billsFor, choreStatus, faturasAPagar, saldoVale, summary } from '../lib/finance'
-import { addMonths, ago, dayMonth, firstName, iso, money, monthOf, today } from '../lib/format'
+import { accountBalance, billsFor, choreStatus, summary } from '../lib/finance'
+import { addMonths, ago, dayMonth, firstName, iso, money, monthOf } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Sheet } from '../ui'
@@ -29,8 +29,15 @@ export function Inicio({ ir }: { ir: Ir }) {
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
   const bancos = s.accounts.filter(a => !a.archived)
   const nasContas = bancos.reduce((t, a) => t + accountBalance(a, s.txs, s.cardPays), 0)
-  const faturas = faturasAPagar(s.cards, s.txs, s.cardPays, today())
-  const vale = saldoVale(s.accounts, s.txs, s.cardPays)
+
+  const contasOrdenadas = useMemo(() => {
+    return [...bancos].sort((a, b) => {
+      const aVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+      const bVale = b.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+      if (aVale !== bVale) return aVale ? 1 : -1
+      return a.name.localeCompare(b.name)
+    })
+  }, [bancos])
 
   // o que o outro fez por último
   const atividade = useMemo(() => {
@@ -56,13 +63,44 @@ export function Inicio({ ir }: { ir: Ir }) {
       </div>
 
       <button style={{ display: 'block', width: '100%', textAlign: 'left' }} onClick={() => ir('dinheiro')} aria-label="Ver o dinheiro do mês">
-        <Etiqueta month={mes} {...res} saldo={bancos.length ? nasContas : null} vale={vale} />
+        <Etiqueta month={mes} {...res} saldo={bancos.length ? nasContas : null} somenteSaldo />
       </button>
-      {bancos.length > 0 && faturas > 0 && (
-        <button className="bloco papel" onClick={() => ir('dinheiro')} style={{ display: 'flex', gap: 14, width: '100%', marginTop: 16, textAlign: 'left', padding: '14px 18px' }}>
-          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Faturas a pagar</div><div className="num" style={{ fontWeight: 800, fontSize: 18, color: 'var(--tomate)' }}>{money(faturas)}</div></div>
-          <div style={{ flex: 1 }}><div className="pequeno leve" style={{ fontWeight: 700 }}>Livre depois delas</div><div className="num" style={{ fontWeight: 800, fontSize: 18 }}>{money(nasContas - (vale ?? 0) - faturas)}</div></div>
-        </button>
+
+      {bancos.length > 0 && (
+        <div className="folha-lista" style={{ marginTop: 14 }}>
+          {contasOrdenadas.map(a => {
+            const v = accountBalance(a, s.txs, s.cardPays)
+            const dono = s.member(a.owner)
+            const ehVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+            return (
+              <button
+                className="linha"
+                key={a.id}
+                onClick={() => ir('dinheiro')}
+                style={{ minHeight: 52 }}
+              >
+                {ehVale ? (
+                  <span style={{ fontSize: 22 }} aria-hidden>🍽️</span>
+                ) : dono ? (
+                  <Adesivo fruit={dono.fruit} size={26} />
+                ) : (
+                  <span style={{ fontSize: 22 }} aria-hidden>🏦</span>
+                )}
+                <div className="meio">
+                  <div className="nome">{a.name}</div>
+                  <div className="info">
+                    {ehVale
+                      ? (dono ? `Vale alimentação • ${dono.name}` : 'Vale alimentação')
+                      : (dono ? dono.name : 'Conta da casa')}
+                  </div>
+                </div>
+                <span className={`valor ${v < 0 ? 'sai' : 'entra'}`} style={v < 0 ? { color: 'var(--tomate)' } : undefined}>
+                  {money(v)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       )}
 
       {!s.txs.some(t => t.import_id && t.month === mes) && (
