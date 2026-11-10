@@ -917,4 +917,3 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
 @keyframes ptr-trepida { from { transform: translateY(0) rotate(-0.6deg); } to { transform: translateY(-1.6px) rotate(0.8deg); } }
 @keyframes ptr-sacode { from { transform: translateY(0); } to { transform: translateY(-2.4px); } }
 @keyframes ptr-vento { from { transform: translateX(8px); opacity: 0; } 40% { opacity: 1; } to { transform: translateX(-22px); opacity: 0; } }
-}
