@@ -129,7 +129,7 @@ export function Escolher({ value, onChange }: { value: string; onChange: (f: str
       {Object.entries(FRUITS).map(([id, f]) => (
         <button key={id} type="button" role="radio" aria-checked={value === id} aria-label={f.label}
           onClick={() => onChange(id)}
-          style={{ padding: 6, borderRadius: 18, background: value === id ? 'var(--banana)' : 'transparent' }}>
+          style={{ padding: 6, borderRadius: 0, background: value === id ? 'var(--banana)' : 'transparent' }}>
           <Adesivo fruit={id} size={40} />
         </button>
       ))}

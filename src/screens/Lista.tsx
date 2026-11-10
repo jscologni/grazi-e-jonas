@@ -165,7 +165,7 @@ export function Lista() {
       ))}
 
       {riscados.length > 0 && (
-        <div className="bloco papel" style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="bloco bloco-carrinho" style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div className="pequeno" style={{ fontWeight: 700 }}>No carrinho · {riscados.length} {riscados.length === 1 ? 'item' : 'itens'}</div>
             <Cartaz value={noCarrinho} size="m" />

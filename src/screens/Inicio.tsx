@@ -219,7 +219,7 @@ function Ajustes({ open, onClose }: { open: boolean; onClose: () => void }) {
         {s.categories.filter(c => !c.archived).map(c => (
           <span key={c.id} className="chip" style={{ paddingRight: 6 }}>
             {c.emoji} {c.name} <span className="leve pequeno">{c.kind === 'in' ? 'entrada' : ''}</span>
-            <button onClick={() => arquivarCat(c.id)} aria-label={`Tirar categoria ${c.name}`} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--chao)' }}>✕</button>
+            <button onClick={() => arquivarCat(c.id)} aria-label={`Tirar categoria ${c.name}`} style={{ width: 26, height: 26, borderRadius: 0, background: 'var(--chao)' }}>✕</button>
           </span>
         ))}
       </div>

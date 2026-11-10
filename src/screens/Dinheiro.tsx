@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import { useId, useMemo, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
 import { billsFor, contaPadrao, goalProgress, invoice, invoiceMonth, saldoContas, saldoVale, summary, type BillState } from '../lib/finance'
 import { addMonths, dayMonth, dueDate, iso, monthName, monthOf, monthShort, money, parseISO, today } from '../lib/format'
@@ -74,21 +75,53 @@ export function Etiqueta({
         : `Sobra de ${month ? monthName(month) : ''}`)
 
   return (
-    <motion.div className={`etiqueta ${valor < 0 ? 'negativa' : ''}`} initial={{ rotate: -6, y: -8 }} animate={{ rotate: -1.6, y: 0 }}
-      transition={{ type: 'spring', damping: 8, stiffness: 120 }}>
-      <div className="rotulo">{rotulo}</div>
-      <div className="cabe"><Cartaz value={valor} size="xg" /></div>
+    <div className={`card-financeiro card-dinheiro-resumo ${valor < 0 ? 'negativo' : ''}`}>
+      <div className="card-financeiro-topo">
+        <div className="card-financeiro-rotulo">
+          <span>{rotulo}</span>
+          <Sparkles size={16} className="card-financeiro-brilho" />
+        </div>
+        <div className="card-financeiro-valor cabe">
+          <Cartaz value={valor} size="xg" />
+        </div>
+      </div>
       {!somenteSaldo && (
-        <div className="linhas">
-          {inicial !== 0 && <span>saldo inicial<b>{money(inicial)}</b></span>}
-          <span>entrou no mês<b>{money(entrou)}</b></span>
-          <span>saiu no mês<b>{money(saiu)}</b></span>
-          {guardou !== 0 && <span>guardou<b>{money(guardou)}</b></span>}
-          {saldo != null && <span>sobra do mês<b>{money(sobra)}</b></span>}
-          {saldo != null && vale != null && <span>no cartão alimentação<b>{money(vale)}</b></span>}
+        <div className="card-dinheiro-linhas">
+          {inicial !== 0 && (
+            <div className="card-dinheiro-item">
+              <span className="card-dinheiro-rotulo">Saldo inicial</span>
+              <b className="card-dinheiro-val">{money(inicial)}</b>
+            </div>
+          )}
+          <div className="card-dinheiro-item">
+            <span className="card-dinheiro-rotulo">Entrou no mês</span>
+            <b className="card-dinheiro-val entra">+ {money(entrou)}</b>
+          </div>
+          <div className="card-dinheiro-item">
+            <span className="card-dinheiro-rotulo">Saiu no mês</span>
+            <b className="card-dinheiro-val sai">− {money(saiu)}</b>
+          </div>
+          {guardou !== 0 && (
+            <div className="card-dinheiro-item">
+              <span className="card-dinheiro-rotulo">Guardou</span>
+              <b className="card-dinheiro-val uva">{money(guardou)}</b>
+            </div>
+          )}
+          {saldo != null && (
+            <div className="card-dinheiro-item">
+              <span className="card-dinheiro-rotulo">Sobra do mês</span>
+              <b className={`card-dinheiro-val ${sobra < 0 ? 'sai' : 'sobra'}`}>{money(sobra)}</b>
+            </div>
+          )}
+          {saldo != null && vale != null && (
+            <div className="card-dinheiro-item">
+              <span className="card-dinheiro-rotulo">Alimentação</span>
+              <b className="card-dinheiro-val folha">{money(vale)}</b>
+            </div>
+          )}
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }
 
@@ -124,9 +157,9 @@ function Lancamentos({ month }: { month: string }) {
               <div key={id} role="row" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 10px', marginBottom: 12 }}>
                 <span role="cell" style={{ fontWeight: 650 }}>{cat(id)?.emoji ?? '📦'} {cat(id)?.name ?? 'Sem categoria'}</span>
                 <span role="cell" className="num" style={{ fontWeight: 750 }}>{money(v)} <span className="leve pequeno">{Math.round((v / totalSaiu) * 100)}%</span></span>
-                <div style={{ gridColumn: '1 / -1', height: 10, borderRadius: 5, background: 'var(--chao)' }} aria-hidden>
+                <div style={{ gridColumn: '1 / -1', height: 8, borderRadius: 0, background: 'var(--chao)' }} aria-hidden>
                   <motion.div initial={{ width: 0 }} animate={{ width: `${(v / maior) * 100}%` }} transition={{ duration: 0.5 }}
-                    style={{ height: '100%', borderRadius: 4, background: 'var(--abobora)' }} />
+                    style={{ height: '100%', borderRadius: 0, background: 'linear-gradient(90deg, #7C3AED 0%, #EC4899 52%, #FF6B4A 100%)' }} />
                 </div>
               </div>
             ))}
@@ -573,7 +606,7 @@ function EditarCartao({ cartao, onClose }: { cartao: Card | 'novo' | null; onClo
       <label className="campo"><span>Nome</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Nubank, Inter, Caixa…" /></label>
       <div className="campo"><span>Cor</span>
         <div className="chips">{CARD_COLORS.map(c => <button key={c} aria-label={c} aria-pressed={f.color === c} onClick={() => setF({ ...f, color: c })}
-          className={`cor-${c}`} style={{ width: 40, height: 40, borderRadius: 12, outline: f.color === c ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
+          className={`cor-${c}`} style={{ width: 40, height: 40, borderRadius: 0, outline: f.color === c ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
       </div>
       <div className="lado">
         <label className="campo"><span>Fecha dia</span><input className="entrada num" type="number" min={1} max={31} inputMode="numeric" value={f.closing_day} onChange={e => setF({ ...f, closing_day: Number(e.target.value) })} /></label>
@@ -707,7 +740,7 @@ function NovaCaixinha({ open, onClose }: { open: boolean; onClose: () => void })
       <label className="campo"><span>Até quando (opcional)</span><input className="entrada" type="date" value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} /></label>
       <div className="campo"><span>Cor do pote</span>
         <div className="chips">{GOAL_COLORS.map(cor => <button key={cor} aria-label={cor} aria-pressed={f.color === cor} onClick={() => setF({ ...f, color: cor })}
-          style={{ width: 40, height: 40, borderRadius: '50%', background: COR_POTE[cor], outline: f.color === cor ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
+          style={{ width: 40, height: 40, borderRadius: 0, background: COR_POTE[cor], outline: f.color === cor ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
       </div>
       <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={salvar}>Criar caixinha</button>
     </Sheet>
