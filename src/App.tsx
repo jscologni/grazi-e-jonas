@@ -1,7 +1,7 @@
-import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { monthOf } from './lib/format'
-import { useStore } from './lib/store'
+import { say, useStore } from './lib/store'
 import { Casa as CasaTela } from './screens/Casa'
 import { Dinheiro } from './screens/Dinheiro'
 import { Casa as CriarCasa, Login, NovaSenha } from './screens/Entrar'
@@ -11,6 +11,14 @@ import { Lista } from './screens/Lista'
 import { ABAS, Menu, type Aba } from './Menu'
 import { PullToRefresh } from './components/PullToRefresh'
 import { Toasts } from './ui'
+
+// o conteúdo entra pelo lado da aba tocada e sai pelo lado oposto (dir: 1 = aba à direita)
+const TELAS = {
+  entra: (d: number) => ({ opacity: 0, x: d * 28, y: d === 0 ? 8 : 0 }),
+  centro: { opacity: 1, x: 0, y: 0 },
+  sai: (d: number) => ({ opacity: 0, x: d * -28 }),
+}
+const posicao = (a: Aba) => ABAS.findIndex(x => x.id === a)
 
 const lerAba = (): Aba => {
   const h = location.hash.replace('#', '') as Aba
@@ -23,6 +31,20 @@ export default function App() {
   const [mes, setMes] = useState(monthOf(new Date()))
   const [lancar, setLancar] = useState(false)
   const [fabVisivel, setFabVisivel] = useState(true)
+  const [dir, setDir] = useState(0)
+  const abaAtual = useRef(aba)
+  const mudar = (nova: Aba) => {
+    if (nova === abaAtual.current) return
+    setDir(Math.sign(posicao(nova) - posicao(abaAtual.current)))
+    abaAtual.current = nova
+    setAba(nova)
+  }
+  // puxar para atualizar: sem internet ou com erro, avisa em vez de dizer que sincronizou
+  const { reload, toast } = s
+  const atualizar = useCallback(async () => {
+    if (!navigator.onLine) { toast('Sem internet. Não deu para atualizar agora.', 'erro'); throw new Error('sem internet') }
+    try { await reload() } catch (e) { toast(say(e), 'erro'); throw e }
+  }, [reload, toast])
   useEffect(() => {
     let ultimo = window.scrollY
     const rolar = () => {
@@ -34,11 +56,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const h = () => setAba(lerAba())
+    const h = () => mudar(lerAba())
     window.addEventListener('hashchange', h)
     return () => window.removeEventListener('hashchange', h)
-  }, [])
-  const ir = (a: Aba) => { if (a !== aba) { history.pushState(null, '', `#${a}`); setAba(a); window.scrollTo({ top: 0, behavior: 'instant' }) } }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const ir = (a: Aba) => { if (a !== aba) { history.pushState(null, '', `#${a}`); mudar(a); window.scrollTo({ top: 0, behavior: 'instant' }) } }
 
   if (!s.ready) return <div className="app" />
   if (!s.session) return <div className="app"><Login /><Toasts /></div>
@@ -62,6 +84,7 @@ export default function App() {
 
   const faltam = s.items.filter(i => !i.checked).length
   return (
+    <MotionConfig reducedMotion="user">
     <div className={`app ${aba === 'inicio' ? 'app-inicio' : ''}`}>
       {(!s.online || s.pendentes > 0) && (
         <div className="offline" role="status">
@@ -69,9 +92,9 @@ export default function App() {
           {s.pendentes > 0 ? ` · ${s.pendentes} ${s.pendentes === 1 ? 'mudança esperando' : 'mudanças esperando'}` : '.'}
         </div>
       )}
-      <PullToRefresh aba={aba} onRefresh={() => s.reload()}>
-        <AnimatePresence mode="wait">
-          <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+      <PullToRefresh aba={aba} onRefresh={atualizar}>
+        <AnimatePresence mode="wait" custom={dir}>
+          <motion.main key={aba} className={aba === 'inicio' ? 'main-inicio' : ''} custom={dir} variants={TELAS} initial="entra" animate="centro" exit="sai" transition={{ duration: 0.18, ease: 'easeOut' }}>
             {aba === 'inicio' && <Inicio ir={ir} />}
             {aba === 'lista' && <Lista />}
             {aba === 'dinheiro' && <Dinheiro month={mes} setMonth={setMes} />}
@@ -88,5 +111,6 @@ export default function App() {
       <Menu aba={aba} ir={ir} contador={faltam} />
       <Toasts />
     </div>
+    </MotionConfig>
   )
 }

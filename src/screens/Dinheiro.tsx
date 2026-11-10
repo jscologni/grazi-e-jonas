@@ -1,4 +1,4 @@
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { CARD_COLORS, GOAL_COLORS, METHODS } from '../lib/catalog'
@@ -82,7 +82,7 @@ export function Etiqueta({
           <Sparkles size={16} className="card-financeiro-brilho" />
         </div>
         <div className="card-financeiro-valor cabe">
-          <Cartaz value={valor} size="xg" />
+          <Cartaz value={valor} size="xg" contar={saldo != null ? 'saldo' : undefined} />
         </div>
       </div>
       {!somenteSaldo && (
@@ -123,6 +123,26 @@ export function Etiqueta({
       )}
     </div>
   )
+}
+
+/** Ids cujo valor subiu com a tela aberta (conta que acabou de ser paga, fatura que recebeu pagamento): ganham o carimbo */
+function useSubiu(valores: Record<string, number>, escopo: string) {
+  const anterior = useRef<{ escopo: string; v: Record<string, number> } | null>(null)
+  const [ids, setIds] = useState<string[]>([])
+  const assinatura = JSON.stringify(valores)
+  useEffect(() => {
+    const a = anterior.current
+    anterior.current = { escopo, v: valores }
+    if (!a || a.escopo !== escopo) return
+    const novos = Object.keys(valores).filter(k => k in a.v && valores[k] > a.v[k])
+    if (novos.length) setIds(novos)
+  }, [assinatura, escopo]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ids.length) return
+    const t = window.setTimeout(() => setIds([]), 1700)
+    return () => window.clearTimeout(t)
+  }, [ids])
+  return ids
 }
 
 /* ------------------------------------------------------------------ lançamentos */
@@ -199,7 +219,7 @@ function Lancamentos({ month }: { month: string }) {
               <span className="pequeno leve num">{money(totalSaiu)}</span>
             </div>
           </div>
-          <div className="bloco papel" role="region" aria-label="Gastos por categoria" style={{ padding: 8 }}>
+          <div className={`bloco papel ${categoriaFiltro ? 'tem-filtro' : ''}`} role="region" aria-label="Gastos por categoria" style={{ padding: 8 }}>
             {porCategoria.slice(0, 7).map(([id, v]) => {
               const ativa = categoriaFiltro === id
               return (
@@ -294,14 +314,23 @@ function Lancamentos({ month }: { month: string }) {
           )}
         </div>
       )}
-      {porDia.map(([dia, txs]) => (
-        <div key={dia} style={{ marginBottom: 14 }}>
-          <div className="pequeno" style={{ fontWeight: 750, margin: '0 4px 6px' }}>{dia === today() ? 'Hoje' : dayMonth(dia)}</div>
-          <div className="folha-lista">
-            {txs.map(t => <LinhaTx key={t.id} t={t} onClick={() => setAberto(t)} />)}
-          </div>
-        </div>
-      ))}
+      {/* ao filtrar, os dias e lançamentos que saem encolhem e os que ficam deslizam para o lugar */}
+      <AnimatePresence initial={false}>
+        {porDia.map(([dia, txs]) => (
+          <motion.div key={dia} className="dia-anim" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.24, ease: 'easeOut' }}>
+            <div className="pequeno" style={{ fontWeight: 750, margin: '0 4px 6px' }}>{dia === today() ? 'Hoje' : dayMonth(dia)}</div>
+            <div className="folha-lista">
+              <AnimatePresence initial={false}>
+                {txs.map(t => (
+                  <motion.div key={t.id} className="linha-anim" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.24, ease: 'easeOut' }}>
+                    <LinhaTx t={t} onClick={() => setAberto(t)} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
       <Lancar open={!!aberto} tx={aberto} onClose={() => setAberto(null)} />
     </>
   )
@@ -339,6 +368,7 @@ function Contas({ month }: { month: string }) {
   const [editar, setEditar] = useState<Bill | 'nova' | null>(null)
   const total = estados.reduce((a, e) => a + (e.paid ? +e.paid.amount : +e.bill.amount), 0)
   const falta = estados.filter(e => !e.paid).reduce((a, e) => a + +e.bill.amount, 0)
+  const carimbos = useSubiu(Object.fromEntries(estados.map(e => [e.bill.id, e.paid ? 1 : 0])), month)
   return (
     <>
       <div className="grade2" style={{ marginTop: 18 }}>
@@ -351,7 +381,8 @@ function Contas({ month }: { month: string }) {
         ? <div className="vazio"><span className="emoji">🧾</span>Cadastre aluguel, luz, internet… Elas aparecem sozinhas todo mês, com aviso de vencimento.</div>
         : <div className="folha-lista">
           {estados.map(e => (
-            <div className="linha" key={e.bill.id}>
+            <div className="linha carimbavel" key={e.bill.id}>
+              {carimbos.includes(e.bill.id) && <span className="carimbo" aria-hidden>PAGO</span>}
               <button onClick={() => setEditar(e.bill)} style={{ fontSize: 24, width: 30 }} aria-label={`Editar ${e.bill.name}`}>{e.bill.emoji}</button>
               <button className="meio" onClick={() => setPagar(e)} style={{ textAlign: 'left' }}>
                 <div className="nome">{e.bill.name}</div>
@@ -502,6 +533,7 @@ function Cartoes({ month }: { month: string }) {
   const [pagar, setPagar] = useState<Card | null>(null)
   const [anterior, setAnterior] = useState<Card | null>(null)
   const cards = s.cards.filter(k => !k.archived)
+  const carimbos = useSubiu(Object.fromEntries(cards.map(k => [k.id, invoice(k, month, s.txs, s.cardPays).pago])), month)
   const desfazer = async (id: string) => {
     const { error } = await supabase.from('card_payments').delete().eq('id', id)
     if (error) return s.toast(say(error), 'erro')
@@ -521,6 +553,7 @@ function Cartoes({ month }: { month: string }) {
           const usado = meses.reduce((a, m) => a + invoice(k, m, s.txs, s.cardPays).falta, 0)
           return (
             <motion.button key={k.id} className={`cartao cor-${k.color}`} onClick={() => setFatura(k)} whileTap={{ scale: 0.98 }} style={{ textAlign: 'left' }}>
+              {carimbos.includes(k.id) && <span className="carimbo" aria-hidden>PAGO</span>}
               <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
                 <b style={{ fontSize: 18 }}>{k.name}</b>
                 <span className="pequeno" style={{ opacity: 0.85 }}>fecha {k.closing_day} · vence {k.due_day}</span>

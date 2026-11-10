@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Camera, ClipboardPaste } from 'lucide-react'
 import { dayMonth, money, norm } from '../lib/format'
 import { mercadoDoCnpj } from '../lib/mercado'
 import { lerNota, type ItemNota } from '../lib/nota'
@@ -141,7 +142,7 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
             ) : (
               <>
                 <p>É o quadradinho no fim do cupom fiscal.</p>
-                <button className="btn tomate" onClick={() => setCamera(true)}>📷 Abrir câmera</button>
+                <button className="btn tomate" onClick={() => setCamera(true)}><Camera size={18} /> Abrir câmera</button>
                 <p className="pequeno"><button className="link" onClick={() => setPend({ url: '', chave: '', cnpj: '', mercadoId: null, mercado: null, t: Date.now() })}>Já estou com a nota aberta no navegador</button></p>
               </>
             )}
@@ -161,7 +162,7 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
 
           <li className={pend ? 'atual' : ''}>
             <b>Colar aqui</b>
-            <button className="btn cheio" onClick={colar} disabled={!pend}>📋 Colar nota</button>
+            <button className="btn cheio" onClick={colar} disabled={!pend}><ClipboardPaste size={18} /> Colar nota</button>
             <textarea className="entrada" value={texto} onChange={e => setTexto(e.target.value)} disabled={!pend}
               placeholder="Ou toque e segure aqui e escolha Colar" style={{ marginTop: 10, minHeight: 80 }} aria-label="Texto da nota" />
             {nota && !qtdItens && (

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState, type FormEvent } from 'react'
+import { Broom, Package } from 'lucide-react'
 import { CHORE_SUGGESTIONS, SECTIONS, guessSection } from '../lib/catalog'
 import { choreStatus } from '../lib/finance'
 import { ago, monthOf } from '../lib/format'
@@ -14,8 +15,8 @@ export function Casa() {
     <div className="page">
       <div className="topo"><h1 className="titulo">Casa</h1></div>
       <div className="segmento">
-        <button aria-pressed={aba === 'despensa'} onClick={() => setAba('despensa')}>🥫 Despensa</button>
-        <button aria-pressed={aba === 'tarefas'} onClick={() => setAba('tarefas')}>🧹 Tarefas</button>
+        <button aria-pressed={aba === 'despensa'} onClick={() => setAba('despensa')}><Package size={17} /> Despensa</button>
+        <button aria-pressed={aba === 'tarefas'} onClick={() => setAba('tarefas')}><Broom size={17} /> Tarefas</button>
       </div>
       {aba === 'despensa' ? <Despensa /> : <Tarefas />}
     </div>

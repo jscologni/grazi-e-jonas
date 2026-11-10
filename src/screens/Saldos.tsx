@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FileSpreadsheet, Landmark, UtensilsCrossed } from 'lucide-react'
 import { accountBalance, faturasAPagar, saldoVale } from '../lib/finance'
 import { dayMonth, money, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
@@ -55,7 +56,7 @@ export function Saldos() {
 
       <div className="secao"><h2 className="subtitulo">Contas</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn pequeno fantasma" onClick={() => setExtrato({ conta: null })}>📄 Extrato</button>
+          <button className="btn pequeno fantasma" onClick={() => setExtrato({ conta: null })}><FileSpreadsheet size={16} /> Extrato</button>
           <button className="btn pequeno banana" onClick={() => setEditar('nova')}>+ Conta</button>
         </div></div>
 
@@ -63,7 +64,7 @@ export function Saldos() {
         <div className="vazio"><span className="emoji">🏦</span>
           Cadastre a conta de cada um (Nubank, Caixa, carteira…) com o saldo de hoje.
           Daí em diante, o que vocês lançarem entra e sai do saldo sozinho.
-          <button className="btn banana" style={{ marginTop: 12 }} onClick={() => setExtrato({ conta: null })}>📄 Começar pelo extrato do mês</button></div>
+          <button className="btn banana" style={{ marginTop: 12 }} onClick={() => setExtrato({ conta: null })}><FileSpreadsheet size={18} /> Começar pelo extrato do mês</button></div>
       )}
 
       {donos.map(dono => {
@@ -131,8 +132,8 @@ function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nov
   return (
     <Sheet open={!!conta} onClose={onClose} title={conta === 'nova' ? 'Nova conta' : 'Editar conta'}>
       <div className="segmento" style={{ marginTop: 8 }}>
-        <button aria-pressed={f.kind === 'conta'} onClick={() => setF({ ...f, kind: 'conta' })}>🏦 Conta</button>
-        <button aria-pressed={f.kind === 'alimentacao'} onClick={() => setF({ ...f, kind: 'alimentacao' })}>🍽️ Cartão alimentação</button>
+        <button aria-pressed={f.kind === 'conta'} onClick={() => setF({ ...f, kind: 'conta' })}><Landmark size={17} /> Conta</button>
+        <button aria-pressed={f.kind === 'alimentacao'} onClick={() => setF({ ...f, kind: 'alimentacao' })}><UtensilsCrossed size={17} /> Cartão alimentação</button>
       </div>
       <label className="campo"><span>Nome</span>
         <input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={f.kind === 'alimentacao' ? 'Cartão alimentação' : 'Nubank, Caixa, Sicoob, carteira…'} /></label>
@@ -152,7 +153,7 @@ function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nov
       <label className="campo"><span>Dia do saldo</span>
         <input className="entrada" type="date" value={f.initial_date} onChange={e => setF({ ...f, initial_date: e.target.value || today() })} /></label>
       <p className="pequeno leve">Lançamentos a partir desse dia mexem no saldo; os anteriores já estão dentro dele.</p>
-      {conta && conta !== 'nova' && <button className="btn banana cheio" onClick={() => onExtrato(conta.id)}>📄 Atualizar com o extrato</button>}
+      {conta && conta !== 'nova' && <button className="btn banana cheio" onClick={() => onExtrato(conta.id)}><FileSpreadsheet size={18} /> Atualizar com o extrato</button>}
       <div className="acoes">
         {conta !== 'nova' && <button className="btn fantasma" onClick={arquivar}>Encerrar conta</button>}
         <button className="btn" onClick={salvar}>Salvar</button>

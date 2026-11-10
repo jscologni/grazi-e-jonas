@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Broom, FileSpreadsheet, ShoppingBasket, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Bell, Broom, FileSpreadsheet, ShoppingBasket, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
 import { accountBalance, choreStatus } from '../lib/finance'
 import { dayMonth, firstName, money, monthOf } from '../lib/format'
@@ -11,6 +11,12 @@ import { ImportarExtrato } from './Extrato'
 
 type Ir = (aba: 'lista' | 'dinheiro' | 'casa') => void
 
+/** Cartão alimentação: pelo tipo da conta ou, nas antigas, pelo nome */
+const ehVale = (a: { kind?: string; name: string }) =>
+  a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+
+let jaEntrou = false // a cascata de entrada toca só na primeira vez que o Início aparece
+
 const saudacao = () => {
   const h = new Date().getHours()
   return h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
@@ -20,6 +26,9 @@ export function Inicio({ ir }: { ir: Ir }) {
   const s = useStore()
   const [ajustes, setAjustes] = useState(false)
   const [extrato, setExtrato] = useState(false)
+  const [cascata] = useState(() => !jaEntrou)
+  useEffect(() => { jaEntrou = true }, [])
+  const ordem = (i: number) => ({ ['--i' as string]: i })
   const mes = monthOf(new Date())
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
@@ -27,17 +36,35 @@ export function Inicio({ ir }: { ir: Ir }) {
   const bancos = s.accounts.filter(a => !a.archived)
   const nasContas = bancos.reduce((t, a) => t + accountBalance(a, s.txs, s.cardPays), 0)
 
-  const contasOrdenadas = useMemo(() => {
-    return [...bancos].sort((a, b) => {
-      const aVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
-      const bVale = b.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
-      if (aVale !== bVale) return aVale ? 1 : -1
-      return a.name.localeCompare(b.name)
-    })
-  }, [bancos])
+  // contas de banco primeiro, cartão alimentação por último
+  const contasOrdenadas = [...bancos].sort((a, b) => Number(ehVale(a)) - Number(ehVale(b)) || a.name.localeCompare(b.name))
+
+  // lista de contas maior que o espaço: esfumado no fim até rolar tudo
+  const contasRef = useRef<HTMLDivElement>(null)
+  const [rola, setRola] = useState(false)
+  const medirContas = () => {
+    const el = contasRef.current
+    setRola(!!el && el.scrollHeight - el.clientHeight - el.scrollTop > 4)
+  }
+  // em tela baixa o botão do extrato encolhe para não ficar embaixo do "Lançar"
+  const extratoRef = useRef<HTMLButtonElement>(null)
+  const [aperto, setAperto] = useState(0)
+  const semExtrato = !s.txs.some(t => t.import_id && t.month === mes)
+  useLayoutEffect(() => {
+    const medir = () => {
+      medirContas()
+      const b = extratoRef.current, fab = document.querySelector('.fab')
+      if (!b || !fab) return setAperto(0)
+      const rb = b.getBoundingClientRect(), rf = fab.getBoundingClientRect()
+      setAperto(rb.bottom > rf.top - 6 && rb.top < rf.bottom + 6 ? Math.round(rb.right - rf.left + 10) : 0)
+    }
+    medir()
+    window.addEventListener('resize', medir)
+    return () => window.removeEventListener('resize', medir)
+  }, [bancos.length, semExtrato])
 
   return (
-    <div className="page page-inicio">
+    <div className={`page page-inicio ${cascata ? 'cascata' : ''}`}>
       <div className="topo" style={{ alignItems: 'center' }}>
         <div>
           <p className="leve" style={{ margin: 0, fontWeight: 600 }}>{saudacao()},</p>
@@ -50,7 +77,7 @@ export function Inicio({ ir }: { ir: Ir }) {
       </div>
 
       {/* Card Financeiro Unificado (Sunset Glow) */}
-      <div className="card-financeiro">
+      <div className="card-financeiro" style={ordem(0)}>
         <button
           onClick={() => ir('dinheiro')}
           className="card-financeiro-topo"
@@ -61,29 +88,30 @@ export function Inicio({ ir }: { ir: Ir }) {
             <Sparkles size={16} className="card-financeiro-brilho" />
           </div>
           <div className="card-financeiro-valor cabe">
-            <Cartaz value={nasContas} size="xg" />
+            <Cartaz value={nasContas} size="xg" contar="saldo" />
           </div>
         </button>
 
         {bancos.length > 0 && (
-          <div className="card-financeiro-contas">
-            {contasOrdenadas.map(a => {
+          <div className={`card-financeiro-contas ${rola ? 'rola' : ''}`} ref={contasRef} onScroll={medirContas}>
+            {contasOrdenadas.map((a, n) => {
               const v = accountBalance(a, s.txs, s.cardPays)
               const dono = s.member(a.owner)
-              const ehVale = a.kind === 'alimentacao' || /\b(vale|alimenta|refei|flash|ticket|sodexo|pluxee|vr|va|caju|swile|alelo)\b/i.test(a.name)
+              const vale = ehVale(a)
               return (
                 <button
                   className="card-financeiro-linha"
                   key={a.id}
+                  style={ordem(1 + Math.min(n, 4))}
                   onClick={() => ir('dinheiro')}
                 >
                   <div
                     className="card-financeiro-icone"
                     style={{
-                      background: ehVale ? 'var(--folha-claro)' : dono ? 'var(--uva-claro)' : 'var(--chao)'
+                      background: vale ? 'var(--folha-claro)' : dono ? 'var(--uva-claro)' : 'var(--chao)'
                     }}
                   >
-                    {ehVale ? (
+                    {vale ? (
                       <UtensilsCrossed size={18} style={{ color: 'var(--folha)' }} />
                     ) : dono ? (
                       <Adesivo fruit={dono.fruit} size={24} />
@@ -94,7 +122,7 @@ export function Inicio({ ir }: { ir: Ir }) {
                   <div className="meio">
                     <div className="nome">{a.name}</div>
                     <div className="info">
-                      {ehVale
+                      {vale
                         ? (dono ? `Vale alimentação • ${dono.name}` : 'Vale alimentação')
                         : (dono ? dono.name : 'Conta da casa')}
                     </div>
@@ -110,7 +138,7 @@ export function Inicio({ ir }: { ir: Ir }) {
       </div>
 
       <div className="grade2">
-        <button className="card-acao feira" onClick={() => ir('lista')}>
+        <button className="card-acao feira" style={ordem(4)} onClick={() => ir('lista')}>
           <div className="card-acao-header">
             <span className="card-acao-tag">Feira</span>
             <div className="card-acao-icone"><ShoppingBasket size={22} /></div>
@@ -119,10 +147,10 @@ export function Inicio({ ir }: { ir: Ir }) {
             <div className="card-acao-numero">{faltam.length}</div>
             <div className="card-acao-desc">{faltam.length === 1 ? 'item na lista' : 'itens na lista'}</div>
           </div>
-          <div className="card-acao-fundo-decor" aria-hidden>🧺 🥖 🧀</div>
+          <div className="card-acao-fundo-decor" aria-hidden>🧺</div>
         </button>
 
-        <button className="card-acao tarefas" onClick={() => ir('casa')}>
+        <button className="card-acao tarefas" style={ordem(5)} onClick={() => ir('casa')}>
           <div className="card-acao-header">
             <span className="card-acao-tag">Tarefas</span>
             <div className="card-acao-icone"><Broom size={22} /></div>
@@ -131,17 +159,18 @@ export function Inicio({ ir }: { ir: Ir }) {
             <div className="card-acao-numero">{tarefas.length}</div>
             <div className="card-acao-desc">{tarefas.length === 1 ? 'para hoje' : 'para hoje ou atrasadas'}</div>
           </div>
-          <div className="card-acao-fundo-decor" aria-hidden>🧹 🗑️ ✨</div>
+          <div className="card-acao-fundo-decor" aria-hidden>🧹</div>
         </button>
       </div>
 
-      {!s.txs.some(t => t.import_id && t.month === mes) && (
+      {semExtrato && (
         <button
-          className="btn fantasma cheio btn-extrato-inicio"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          ref={extratoRef}
+          className={`btn fantasma cheio btn-extrato-inicio ${aperto ? 'aperta' : ''}`}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginRight: aperto || undefined, ...ordem(6) }}
           onClick={() => setExtrato(true)}
         >
-          <FileSpreadsheet size={18} /> Colocar o extrato do mês
+          <FileSpreadsheet size={18} /> {aperto ? 'Extrato do mês' : 'Colocar o extrato do mês'}
         </button>
       )}
 
@@ -262,7 +291,7 @@ function AvisosCelular({ aberto }: { aberto: boolean }) {
       {estado === 'instalar-iphone' && <p className="aviso" style={{ marginTop: 0 }}>No iPhone, os avisos só funcionam com o app na tela de início: no Safari, toque em Compartilhar › Adicionar à Tela de Início e abra o app por lá.</p>}
       {estado === 'sem-suporte' && <p className="aviso" style={{ marginTop: 0 }}>Este navegador não recebe avisos. Use o app instalado no celular.</p>}
       {estado === 'bloqueado' && <p className="aviso" style={{ marginTop: 0 }}>As notificações do app estão bloqueadas. Libere nas configurações do celular (Notificações › Grazi e Jonas) e volte aqui.</p>}
-      {estado === 'desligado' && <button className="btn folha cheio" disabled={busy} onClick={() => fazer(ligarAvisos, 'Avisos ligados neste celular')}>🔔 Ligar avisos</button>}
+      {estado === 'desligado' && <button className="btn folha cheio" disabled={busy} onClick={() => fazer(ligarAvisos, 'Avisos ligados neste celular')}><Bell size={18} /> Ligar avisos</button>}
       {estado === 'ligado' && (
         <div className="acoes" style={{ marginTop: 0 }}>
           <button className="btn fantasma" disabled={busy} onClick={() => fazer(desligarAvisos, 'Avisos desligados neste celular')}>Desligar</button>

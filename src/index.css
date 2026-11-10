@@ -13,6 +13,7 @@
   --folha: #357D27;
   --folha-claro: #DCEFCF;
   --abobora: #F29A1F;
+  --abobora-texto: #9A5A00; /* laranja para texto sobre fundo claro (5,6:1) */
   --abobora-claro: #FDEBCF;
   --banana: #FFD43B;
   --limao: #B8D432;
@@ -34,7 +35,7 @@
   :root:not([data-theme="light"]) {
     --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
     --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-    --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+    --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-texto: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
     --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
     color-scheme: dark;
   }
@@ -42,7 +43,7 @@
 :root[data-theme="dark"] {
   --chao: #1D0F21; --chao-fundo: #140A17; --papel: #2A1730; --tinta: #F5EEDD; --tinta-suave: #BFAFC2;
   --linha: rgba(245, 238, 221, 0.14); --tomate: #FF6A52; --tomate-claro: #4A1E1E; --folha: #7CC46A;
-  --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
+  --folha-claro: #1F3A1C; --sobre-folha: #1D0F21; --sobre-tomate: #1D0F21; --abobora: #FFB347; --abobora-texto: #FFB347; --abobora-claro: #45301A; --uva: #C68BDB; --uva-claro: #3A2245;
   --sombra: 0 2px 0 rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
 }
@@ -67,7 +68,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 
 /* moldura do app: celular no centro mesmo no computador */
 .app {
-  max-width: 520px; margin: 0 auto; min-height: 100dvh; background: var(--chao);
+  max-width: 520px; margin: 0 auto; min-height: 100dvh; background: var(--chao); overflow-x: clip;
   position: relative; padding-bottom: calc(var(--barra) + env(safe-area-inset-bottom) + 96px);
 }
 @media (min-width: 560px) { .app { box-shadow: 0 0 0 1px var(--linha); } }
@@ -122,8 +123,10 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .page-inicio .card-financeiro-contas {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-height: clamp(130px, 24vh, 230px);
+  max-height: clamp(130px, 31vh, 260px);
 }
+.card-financeiro-contas.rola { mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); }
+.page-inicio .btn-extrato-inicio.aperta { width: auto; align-self: stretch; }
 .page-inicio .card-financeiro-linha {
   padding: clamp(8px, 1.2vh, 11px) 16px;
   min-height: clamp(42px, 5.2vh, 52px);
@@ -161,15 +164,15 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 }
 
 /* ---------------------------------------------------------------- tipografia */
-.titulo { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; margin: 0; letter-spacing: -0.01em; }
-.subtitulo { font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; margin: 0; }
+.titulo { font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1; margin: 0; letter-spacing: -0.025em; }
+.subtitulo { font-family: var(--display); font-weight: 800; font-size: 21px; line-height: 1.1; margin: 0; letter-spacing: -0.015em; }
 .leve { color: var(--tinta-suave); }
 .pequeno { font-size: 13px; }
 .topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .secao { margin: 28px 0 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 
 /* ---------------------------------------------------------------- cartaz de oferta (o destaque) */
-.cartaz { display: inline-flex; align-items: flex-start; font-family: var(--display); line-height: 0.82; white-space: nowrap; }
+.cartaz { display: inline-flex; align-items: flex-start; font-family: var(--display); font-weight: 800; line-height: 0.82; white-space: nowrap; }
 .cartaz .rs { font-size: 0.32em; margin: 0.12em 0.12em 0 0; line-height: 1; }
 .cartaz .int { font-size: 1em; letter-spacing: -0.02em; }
 .cartaz .cents { font-size: 0.42em; line-height: 1; margin: 0.04em 0 0 0.04em; text-decoration: underline; text-decoration-thickness: 0.08em; text-underline-offset: 0.12em; }
@@ -225,7 +228,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .card-dinheiro-val.entra { color: var(--folha); }
 .card-dinheiro-val.sai { color: var(--tomate); }
 .card-dinheiro-val.uva { color: var(--uva); }
-.card-dinheiro-val.sobra { color: var(--abobora); }
+.card-dinheiro-val.sobra { color: var(--abobora-texto); }
 .card-dinheiro-val.folha { color: var(--folha); }
 
 /* fallback compatível para etiqueta */
@@ -317,6 +320,10 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   text-align: left;
   transition: background 0.15s ease;
 }
+.card-financeiro-linha .meio { flex: 1; min-width: 0; }
+.card-financeiro-linha .nome { font-weight: 700; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-financeiro-linha .info { font-size: 12.5px; color: var(--tinta-suave); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-financeiro-linha .valor { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .card-financeiro-linha:first-child {
   border-top: none;
 }
@@ -381,7 +388,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FFFFFF;
+  color: inherit;
 }
 .card-acao-corpo {
   position: relative;
@@ -404,16 +411,13 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 }
 .card-acao-fundo-decor {
   position: absolute;
-  right: -6px;
-  bottom: -6px;
+  right: -10px;
+  top: 52%;
   font-size: 48px;
   line-height: 1;
-  opacity: 0.28;
+  opacity: 0.3;
   pointer-events: none;
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  transform: rotate(-6deg);
+  transform: translateY(-50%) rotate(-8deg);
 }
 .card-acao-glow {
   display: none;
@@ -452,7 +456,14 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   background: var(--folha);
   border-color: var(--folha); color: var(--sobre-folha);
 }
-.item-riscado .nome { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--tinta-suave); }
+/* o ✓ se desenha ao marcar */
+.marca svg { fill: none; stroke: currentColor; stroke-width: 3; }
+.marca path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.01s; }
+.marca.feito path { stroke-dashoffset: 0; transition: stroke-dashoffset 0.26s ease-out 0.04s; }
+/* e o risco atravessa o nome da esquerda para a direita */
+.item-riscado .nome { color: var(--tinta-suave); }
+.risco { background: linear-gradient(currentColor, currentColor) no-repeat 0 56% / 0% 2px; transition: background-size 0.01s; }
+.item-riscado .risco { background-size: 100% 2px; transition: background-size 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.14s; }
 .dica-preco { font-size: 12.5px; font-weight: 650; color: var(--folha); }
 .dica-preco.cara { color: var(--abobora); }
 .passos { list-style: none; counter-reset: passo; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
@@ -476,7 +487,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .venc summary .meio { flex: 1; min-width: 0; }
 .venc summary .nome { font-weight: 700; }
 .venc summary .info { font-size: 13px; color: var(--tinta-suave); }
-.lupa { width: 36px; height: 36px; border-radius: 0; background: var(--papel); border: 1px solid var(--linha); font-size: 16px; flex: none; display: grid; place-items: center; }
+.lupa { color: var(--tinta-suave); width: 36px; height: 36px; border-radius: 0; background: var(--papel); border: 1px solid var(--linha); font-size: 16px; flex: none; display: grid; place-items: center; }
 .produto { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border-top: 1px solid var(--linha); }
 .produto:first-child { border-top: 0; }
 .produto img { width: 52px; height: 52px; object-fit: contain; border-radius: 0; background: #fff; border: 1px solid var(--linha); }
@@ -534,6 +545,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 }
 .segmento button {
   min-height: 42px; border-radius: 0; font-weight: 750; color: var(--tinta-suave); background: transparent;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   transition: all 0.15s ease;
 }
 .segmento button[aria-pressed="true"] {
@@ -653,7 +665,7 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
 /* ---------------------------------------------------------------- dinheiro */
 .mes { display: flex; align-items: center; gap: 6px; }
 .mes button.seta { width: 40px; height: 40px; border-radius: 0; background: var(--papel); box-shadow: var(--sombra); font-size: 18px; font-weight: 800; border: 1px solid var(--linha); }
-.mes .nome-mes { font-family: var(--display); font-size: 22px; min-width: 120px; text-align: center; }
+.mes .nome-mes { font-family: var(--display); font-weight: 800; font-size: 22px; min-width: 120px; text-align: center; }
 .abas { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 18px -16px 0; padding: 0 16px 4px; }
 .abas button {
   flex: none; min-height: 40px; padding: 0 16px; border-radius: 0; font-weight: 750; font-size: 13.5px;
@@ -666,6 +678,39 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
   border-color: var(--tinta);
   box-shadow: none;
 }
+
+/* entrada em cascata do Início: cada bloco sobe um pouco depois do anterior */
+.cascata .card-financeiro, .cascata .card-financeiro-linha, .cascata .card-acao, .cascata .btn-extrato-inicio {
+  animation: sobe 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 65ms + 40ms);
+}
+@keyframes sobe { from { opacity: 0; transform: translateY(14px); } }
+
+/* carimbo que bate na conta ou fatura que acabou de ser paga */
+.carimbavel { position: relative; }
+.carimbo {
+  position: absolute; right: 16px; top: 50%; z-index: 3; pointer-events: none;
+  padding: 3px 12px; border: 3px solid var(--folha); color: var(--folha); background: var(--papel);
+  font-weight: 900; font-size: 20px; letter-spacing: 0.14em; line-height: 1.2;
+  transform: translateY(-50%) rotate(-9deg); opacity: 0;
+  animation: carimbo 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+.cartao .carimbo { border-color: #fff; color: #fff; background: rgba(0, 0, 0, 0.28); font-size: 28px; right: 20px; }
+@keyframes carimbo {
+  0% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scale(2.6); }
+  20% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scale(0.9); }
+  30% { transform: translateY(-50%) rotate(-9deg) scale(1.06); }
+  38%, 80% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scale(1); }
+  100% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scale(1); }
+}
+
+/* lançamentos que entram e saem ao filtrar */
+.dia-anim { overflow: hidden; padding-bottom: 14px; }
+.linha-anim { overflow: hidden; }
+.folha-lista > .linha-anim + .linha-anim > .linha { border-top: 1px solid var(--linha); }
+
+/* com filtro ligado, as outras categorias esmaecem */
+.tem-filtro .linha-categoria-filtro:not(.ativa) { opacity: 0.42; }
 
 /* categoria clicável para filtrar lançamentos */
 .linha-categoria-filtro {
@@ -778,7 +823,7 @@ textarea.entrada { padding: 12px 16px; min-height: 90px; resize: vertical; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; transition-duration: 0.01ms !important; transition-delay: 0s !important; }
 }
 
 /* área de toque mínima de 44px (WCAG 2.5.5) sem mudar o desenho */

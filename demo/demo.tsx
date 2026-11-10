@@ -141,6 +141,7 @@ function Demo() {
     toast: (msg, tone = 'ok') => { const i = Date.now(); setToasts(t => [...t, { id: i, msg, tone }]); setTimeout(() => setToasts(t => t.filter(x => x.id !== i)), 2500) },
     toasts,
   }
+  Object.assign(window, { __patch: value.patch }) // para os testes mexerem nos dados de exemplo
   return <StoreCtx.Provider value={value}><App /></StoreCtx.Provider>
 }
 

@@ -1,20 +1,46 @@
 import { AnimatePresence, animate, motion, useDragControls, useReducedMotion } from 'motion/react'
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { FRUITS } from './lib/catalog'
 import { addMonths, monthName, moneyParts } from './lib/format'
 import { useStore } from './lib/store'
 
-/** Valor no estilo cartaz de oferta: R$ pequeno, número gordo, centavos no alto sublinhados */
-export function Cartaz({ value, size = 'm', className = '' }: { value: number; size?: 'p' | 'm' | 'g' | 'xg'; className?: string }) {
-  const { sign, int, cents } = moneyParts(value)
+// último valor mostrado por chave, para o número correr do antigo ao novo mesmo depois de trocar de aba
+const ultimos = new Map<string, number>()
+
+/** Com chave, o valor mostrado corre do anterior até o novo quando muda */
+function useContagem(value: number, chave?: string) {
+  const reduce = useReducedMotion()
+  const [mostrado, setMostrado] = useState(() => (chave ? ultimos.get(chave) ?? value : value))
+  const de = useRef(mostrado)
+  useEffect(() => {
+    if (chave) ultimos.set(chave, value)
+    const inicio = de.current
+    if (!chave || reduce || inicio === value) { de.current = value; setMostrado(value); return }
+    const c = animate(inicio, value, {
+      duration: 0.9, ease: [0.2, 0.8, 0.2, 1],
+      onUpdate: v => { de.current = v; setMostrado(Math.round(v * 100) / 100) },
+      onComplete: () => { de.current = value; setMostrado(value) },
+    })
+    return () => c.stop()
+  }, [value, chave, reduce])
+  return chave ? mostrado : value
+}
+
+/** Valor no estilo cartaz de oferta: R$ pequeno, número gordo, centavos no alto sublinhados.
+ *  contar: chave que liga o valor entre telas (ex.: "saldo"); com ela o número corre ao mudar. */
+export function Cartaz({ value, size = 'm', className = '', contar }: { value: number; size?: 'p' | 'm' | 'g' | 'xg'; className?: string; contar?: string }) {
+  const mostrado = useContagem(value, contar)
+  // o tamanho da letra segue o valor final, para não pular durante a contagem
+  const { sign, int } = moneyParts(value)
+  const visto = moneyParts(mostrado)
   // largura do valor em "em": dígitos gordos + pontos + R$ e centavos. Usado para caber no espaço (cqi).
   const digitos = int.replace(/\D/g, '').length + (sign ? 0.6 : 0)
   const largura = digitos * 0.66 + (int.length - int.replace(/\D/g, '').length) * 0.3 + 1.35
   return (
-    <span className={`cartaz ${size} ${className}`} style={{ ['--largura' as string]: largura }} aria-label={`${value < 0 ? 'menos ' : ''}${int} reais e ${cents} centavos`}>
-      <span className="rs" aria-hidden>{sign}R$</span>
-      <span className="int" aria-hidden>{int}</span>
-      <span className="cents" aria-hidden>,{cents}</span>
+    <span className={`cartaz ${size} ${className}`} style={{ ['--largura' as string]: largura }} aria-label={`${value < 0 ? 'menos ' : ''}${int} reais e ${moneyParts(value).cents} centavos`}>
+      <span className="rs" aria-hidden>{visto.sign}R$</span>
+      <span className="int" aria-hidden>{visto.int}</span>
+      <span className="cents" aria-hidden>,{visto.cents}</span>
     </span>
   )
 }
@@ -120,8 +146,8 @@ export function Toasts() {
   )
 }
 
-/** O item "voa" até a sacola da barra de baixo e a sacola balança */
-export function voarParaSacola(from: HTMLElement | null, label: string) {
+/** O item "voa" até a sacola da barra de baixo e a sacola balança. atraso: espera o ✓ se desenhar antes de sair. */
+export function voarParaSacola(from: HTMLElement | null, label: string, atraso = 0) {
   const alvo = document.querySelector('[data-sacola]') as HTMLElement | null
   if (!from || !alvo || matchMedia('(prefers-reduced-motion: reduce)').matches) return
   const a = from.getBoundingClientRect(), b = alvo.getBoundingClientRect()
@@ -130,14 +156,18 @@ export function voarParaSacola(from: HTMLElement | null, label: string) {
   el.textContent = label
   el.style.left = `${a.left + 40}px`
   el.style.top = `${a.top + a.height / 2 - 18}px`
-  document.body.appendChild(el)
   const dx = b.left + b.width / 2 - (a.left + 40) - 30
   const dy = b.top - (a.top + a.height / 2 - 18)
-  animate(el, {
-    x: [0, dx * 0.35, dx], y: [0, dy * 0.15 - 90, dy],
-    scale: [1, 1.1, 0.25], rotate: [0, -12, 20], opacity: [1, 1, 0.2],
-  }, { duration: 0.75, ease: [0.45, 0, 0.3, 1] }).then(() => {
-    el.remove()
-    animate(alvo, { rotate: [0, -14, 10, -6, 0], scale: [1, 1.18, 1] }, { duration: 0.5 })
-  })
+  // a etiqueta só aparece na hora de voar, para não cobrir o risco no nome
+  const voar = () => {
+    document.body.appendChild(el)
+    animate(el, {
+      x: [0, dx * 0.35, dx], y: [0, dy * 0.15 - 90, dy],
+      scale: [1, 1.1, 0.25], rotate: [0, -12, 20], opacity: [1, 1, 0.2],
+    }, { duration: 0.75, ease: [0.45, 0, 0.3, 1] }).then(() => {
+      el.remove()
+      animate(alvo, { rotate: [0, -14, 10, -6, 0], scale: [1, 1.18, 1] }, { duration: 0.5 })
+    })
+  }
+  if (atraso) window.setTimeout(voar, atraso); else voar()
 }

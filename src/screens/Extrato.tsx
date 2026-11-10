@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
+import { ClipboardPaste, FileUp } from 'lucide-react'
 import { classificar, lerExtrato, type Extrato, type Mov } from '../lib/extrato'
 import { accountBalance, contaPadrao } from '../lib/finance'
 import { dayMonth, daysBetween, firstName, money, monthName, monthOf, norm, parseISO, parseMoney, today } from '../lib/format'
@@ -200,7 +201,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
           </div>
 
           <label className="btn banana cheio" style={{ marginTop: 18, cursor: 'pointer' }}>
-            {lendo ? 'Lendo o extrato…' : '📄 Escolher arquivo do extrato'}
+            {lendo ? 'Lendo o extrato…' : <><FileUp size={18} /> Escolher arquivo do extrato</>}
             <input type="file" className="sr" onChange={escolherArquivo} disabled={lendo} aria-label="Arquivo do extrato" />
           </label>
           <p className="pequeno leve" style={{ margin: '8px 4px 0' }}>
@@ -208,7 +209,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
           </p>
 
           <div className="campo"><span>Ou cole o texto do extrato</span>
-            <button className="btn cheio" onClick={colar}>📋 Colar extrato</button>
+            <button className="btn cheio" onClick={colar}><ClipboardPaste size={18} /> Colar extrato</button>
             <textarea className="entrada" style={{ marginTop: 10, minHeight: 80 }} value={texto} onChange={e => setTexto(e.target.value)}
               placeholder="Ou toque e segure aqui e escolha Colar" aria-label="Texto do extrato" />
             {texto.trim().length > 20 && <button className="btn fantasma cheio" style={{ marginTop: 10 }} onClick={() => processar(texto)}>Ler este texto</button>}

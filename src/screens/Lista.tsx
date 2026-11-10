@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { QrCode, ScanLine, Search, ShoppingCart, Tag } from 'lucide-react'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MARKET_SUGGESTIONS, METHODS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
 import { basketByMarket, contaPadrao, contaVale, invoiceMonth, latestByMarket } from '../lib/finance'
@@ -93,7 +94,7 @@ export function Lista() {
 
   const marcar = async (item: Item, el: HTMLElement | null) => {
     const checked = !item.checked
-    if (checked) voarParaSacola(el, item.name)
+    if (checked) voarParaSacola(el, item.name, 300)
     if (checked && mercado) setPrecoDe(item)
     s.patch('items', it => it.map(i => i.id === item.id ? { ...i, checked, checked_by: checked ? s.me?.user_id ?? null : null, price: checked ? i.price : null } : i))
     const { erro } = await gravarOuGuardar({ tipo: 'update', tabela: 'shopping_items', id: item.id, valores: {
@@ -117,9 +118,9 @@ export function Lista() {
         </div>
         <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
           <button className={`btn pequeno ${mercado ? 'folha' : 'banana'}`} onClick={() => setEscolherMercado(true)}>
-            {mercado ? `🛒 ${mercado.name}` : '🛒 Estou no mercado'}
+            <ShoppingCart size={16} /> {mercado ? mercado.name : 'Estou no mercado'}
           </button>
-          <button className="btn pequeno fantasma" onClick={() => setEscanear(true)}>📷 Escanear nota</button>
+          <button className="btn pequeno fantasma" onClick={() => setEscanear(true)}><ScanLine size={16} /> Escanear nota</button>
         </div>
       </div>
       {pendente && (
@@ -188,7 +189,7 @@ export function Lista() {
             ))}
           </div>
           <p className="pequeno leve" style={{ margin: '8px 4px 0' }}>
-            Preços das lojas online, que podem variar um pouco na prateleira. Toque em 🔎 num item para escolher o produto e entrar na conta.
+            Preços das lojas online, que podem variar um pouco na prateleira. Toque na lupa de um item para escolher o produto e entrar na conta.
           </p>
         </>
       )}
@@ -237,10 +238,10 @@ function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, precos, onCompa
       initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
       <button className={`marca ${item.checked ? 'feito' : ''}`} onClick={() => onMarcar(item, ref.current)}
         aria-label={item.checked ? `Tirar ${item.name} do carrinho` : `Pôr ${item.name} no carrinho`} aria-pressed={item.checked}>
-        {item.checked && '✓'}
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path d="M5 12.5l4.5 4.5L19 7" pathLength={1} /></svg>
       </button>
       <button className="meio" onClick={onEditar} style={{ textAlign: 'left' }}>
-        <div className="nome">{qtyLabel(+item.qty, item.unit) && <span className="leve">{qtyLabel(+item.qty, item.unit)} </span>}{item.name}</div>
+        <div className="nome"><span className="risco">{qtyLabel(+item.qty, item.unit) && <span className="leve">{qtyLabel(+item.qty, item.unit)} </span>}{item.name}</span></div>
         {item.checked
           ? <div className="info">no carrinho{item.checked_by && item.checked_by !== s.me?.user_id ? ` por ${s.memberName(item.checked_by)}` : ''}</div>
           : ofertas[0]
@@ -252,7 +253,7 @@ function LinhaItem({ item, onMarcar, onEditar, onPreco, ofertas, precos, onCompa
       {item.checked
         ? <button className="chip" onClick={onPreco} style={{ minHeight: 34 }}>{item.price != null ? money(item.price * item.qty) : '+ preço'}</button>
         : <>
-            <button className="lupa" onClick={onComparar} aria-label={`Comparar ${item.name} nos sites`} title="Comparar nos sites">{item.ean ? '🏷️' : '🔎'}</button>
+            <button className="lupa" onClick={onComparar} aria-label={`Comparar ${item.name} nos sites`} title="Comparar nos sites">{item.ean ? <Tag size={16} /> : <Search size={16} />}</button>
             {quem && <Adesivo fruit={quem.fruit} size={24} title={`Pedido por ${quem.name}`} />}
           </>}
     </motion.div>
@@ -318,7 +319,7 @@ function EditarItem({ item, onClose, onComparar }: { item: Item | null; onClose:
             </div>
           )}
           <button className="btn banana cheio" style={{ marginTop: 18 }} onClick={() => item && onComparar(item)}>
-            🔎 {form.ean ? `Produto: ${form.product}` : 'Comparar nos sites dos mercados'}
+            <Search size={18} /> {form.ean ? `Produto: ${form.product}` : 'Comparar nos sites dos mercados'}
           </button>
           <div className="acoes">
             <button className="btn fantasma" onClick={apagar}>Tirar da lista</button>
@@ -467,7 +468,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
       <div className="campo"><span>Mercado</span>
         <div className="chips">
           {s.markets.map(m => <button key={m.id} className="chip folha" aria-pressed={mercadoId === m.id} onClick={() => setMercadoId(m.id)}>{m.name}</button>)}
-          <button className="chip" onClick={() => setLendo(true)}>📷 Ler QR da nota</button>
+          <button className="chip" onClick={() => setLendo(true)}><QrCode size={16} /> Ler QR da nota</button>
         </div>
         {chave && <p className="pequeno leve" style={{ margin: '6px 4px 0' }}>Nota identificada pelo QR.</p>}
       </div>
