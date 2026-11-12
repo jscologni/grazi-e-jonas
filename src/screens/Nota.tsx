@@ -19,7 +19,10 @@ export const lerPendente = (): NotaPendente | null => {
   } catch { return null }
 }
 const gravarPendente = (v: NotaPendente | null) => {
-  try { v ? localStorage.setItem(CHAVE, JSON.stringify(v)) : localStorage.removeItem(CHAVE) } catch { /* sem armazenamento */ }
+  try {
+    if (v) localStorage.setItem(CHAVE, JSON.stringify(v))
+    else localStorage.removeItem(CHAVE)
+  } catch { /* sem armazenamento */ }
 }
 
 export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => void }) {

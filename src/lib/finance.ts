@@ -16,7 +16,12 @@ export function invoiceMonth(purchase: string, card: Pick<Card, 'closing_day' | 
 export function summary(month: string, txs: Tx[], moves: GoalMove[], accounts: Account[] = []) {
   let entrou = 0, saiu = 0, guardou = 0
   const inicial = accounts.filter(a => !a.archived && monthOf(a.initial_date) === month).reduce((t, a) => t + +a.initial_balance, 0)
-  for (const t of txs) if (t.month === month) t.kind === 'in' ? (entrou += +t.amount) : (saiu += +t.amount)
+  for (const t of txs) {
+    if (t.month === month) {
+      if (t.kind === 'in') entrou += +t.amount
+      else saiu += +t.amount
+    }
+  }
   for (const m of moves) if (m.month === month) guardou += +m.amount
   return { inicial, entrou, saiu, guardou, sobra: inicial + entrou - saiu - guardou }
 }

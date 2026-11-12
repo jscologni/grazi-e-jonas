@@ -35,7 +35,6 @@ const J = 'u-jonas', G = 'u-grazi'
 const mes = monthOf(new Date())
 const hoje = iso(new Date())
 const ontem = iso(new Date(Date.now() - 86400000))
-const agora = new Date().toISOString()
 const antes = (h: number) => new Date(Date.now() - h * 3600000).toISOString()
 let n = 0
 const id = () => `id-${++n}`

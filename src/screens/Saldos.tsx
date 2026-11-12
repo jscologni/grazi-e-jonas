@@ -103,6 +103,7 @@ export function Saldos() {
 function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nova' | null; onClose: () => void; onExtrato: (id: string) => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [chave, setChave] = useState<string | null>(null)
   const [f, setF] = useState({ name: '', kind: 'conta' as 'conta' | 'alimentacao', owner: null as string | null, initial_date: today(), negativo: false })
   const k = conta === 'nova' ? 'nova' : conta?.id ?? null
@@ -112,51 +113,65 @@ function EditarContaBanco({ conta, onClose, onExtrato }: { conta: Account | 'nov
       setF({ name: conta.name, kind: conta.kind ?? 'conta', owner: conta.owner, initial_date: conta.initial_date, negativo: +conta.initial_balance < 0 })
       c.set(Math.abs(+conta.initial_balance))
     } else { setF({ name: '', kind: 'conta', owner: s.me?.user_id ?? null, initial_date: today(), negativo: false }); c.set(0) }
+    setSalvando(false)
   }
   if (!k && chave) setChave(null)
 
   const salvar = async () => {
+    if (salvando) return
     if (!f.name.trim()) return s.toast('Dê um nome para a conta', 'erro')
-    const row = { name: f.name.trim(), kind: f.kind, owner: f.owner, initial_date: f.initial_date, initial_balance: f.negativo ? -c.value : c.value }
-    const { error } = conta === 'nova' ? await supabase.from('accounts').insert(row) : await supabase.from('accounts').update(row).eq('id', (conta as Account).id)
-    if (error) return s.toast(say(error), 'erro')
-    s.toast(conta === 'nova' ? 'Conta criada' : 'Conta atualizada'); await s.reload(); onClose()
+    setSalvando(true)
+    try {
+      const row = { name: f.name.trim(), kind: f.kind, owner: f.owner, initial_date: f.initial_date, initial_balance: f.negativo ? -c.value : c.value }
+      const { error } = conta === 'nova' ? await supabase.from('accounts').insert(row) : await supabase.from('accounts').update(row).eq('id', (conta as Account).id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      s.toast(conta === 'nova' ? 'Conta criada' : 'Conta atualizada')
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao salvar conta', 'erro')
+    }
   }
   const arquivar = async () => {
-    if (!conta || conta === 'nova') return
-    const { error } = await supabase.from('accounts').update({ archived: true }).eq('id', conta.id)
-    if (error) return s.toast(say(error), 'erro')
-    await s.reload(); onClose()
+    if (!conta || conta === 'nova' || salvando) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('accounts').update({ archived: true }).eq('id', conta.id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
 
   return (
-    <Sheet open={!!conta} onClose={onClose} title={conta === 'nova' ? 'Nova conta' : 'Editar conta'}>
+    <Sheet open={!!conta} onClose={salvando ? () => {} : onClose} title={conta === 'nova' ? 'Nova conta' : 'Editar conta'}>
       <div className="segmento" style={{ marginTop: 8 }}>
-        <button aria-pressed={f.kind === 'conta'} onClick={() => setF({ ...f, kind: 'conta' })}><Landmark size={17} /> Conta</button>
-        <button aria-pressed={f.kind === 'alimentacao'} onClick={() => setF({ ...f, kind: 'alimentacao' })}><UtensilsCrossed size={17} /> Cartão alimentação</button>
+        <button aria-pressed={f.kind === 'conta'} onClick={() => !salvando && setF({ ...f, kind: 'conta' })}><Landmark size={17} /> Conta</button>
+        <button aria-pressed={f.kind === 'alimentacao'} onClick={() => !salvando && setF({ ...f, kind: 'alimentacao' })}><UtensilsCrossed size={17} /> Cartão alimentação</button>
       </div>
       <label className="campo"><span>Nome</span>
-        <input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={f.kind === 'alimentacao' ? 'Cartão alimentação' : 'Nubank, Caixa, Sicoob, carteira…'} /></label>
+        <input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={f.kind === 'alimentacao' ? 'Cartão alimentação' : 'Nubank, Caixa, Sicoob, carteira…'} disabled={salvando} /></label>
       <div className="campo"><span>De quem é</span>
         <div className="chips">
-          {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={f.owner === m.user_id} onClick={() => setF({ ...f, owner: m.user_id })}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}
-          <button className="chip" aria-pressed={f.owner === null} onClick={() => setF({ ...f, owner: null })}>🏠 Dos dois</button>
+          {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={f.owner === m.user_id} onClick={() => !salvando && setF({ ...f, owner: m.user_id })}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}
+          <button className="chip" aria-pressed={f.owner === null} onClick={() => !salvando && setF({ ...f, owner: null })}>🏠 Dos dois</button>
         </div>
       </div>
       <div className="campo"><span>Saldo nesse dia</span></div>
       <div className="segmento">
-        <button aria-pressed={!f.negativo} onClick={() => setF({ ...f, negativo: false })}>Positivo</button>
-        <button aria-pressed={f.negativo} onClick={() => setF({ ...f, negativo: true })}>No vermelho</button>
+        <button aria-pressed={!f.negativo} onClick={() => !salvando && setF({ ...f, negativo: false })}>Positivo</button>
+        <button aria-pressed={f.negativo} onClick={() => !salvando && setF({ ...f, negativo: true })}>No vermelho</button>
       </div>
       <div className={`visor ${f.negativo ? 'sai' : 'entra'} cabe`}><Cartaz value={f.negativo ? -c.value : c.value} size="g" /></div>
-      <Teclado onKey={c.press} />
+      <Teclado onKey={salvando ? () => {} : c.press} />
       <label className="campo"><span>Dia do saldo</span>
-        <input className="entrada" type="date" value={f.initial_date} onChange={e => setF({ ...f, initial_date: e.target.value || today() })} /></label>
+        <input className="entrada" type="date" value={f.initial_date} onChange={e => setF({ ...f, initial_date: e.target.value || today() })} disabled={salvando} /></label>
       <p className="pequeno leve">Lançamentos a partir desse dia mexem no saldo; os anteriores já estão dentro dele.</p>
-      {conta && conta !== 'nova' && <button className="btn banana cheio" onClick={() => onExtrato(conta.id)}><FileSpreadsheet size={18} /> Atualizar com o extrato</button>}
+      {conta && conta !== 'nova' && <button className="btn banana cheio" onClick={() => onExtrato(conta.id)} disabled={salvando}><FileSpreadsheet size={18} /> Atualizar com o extrato</button>}
       <div className="acoes">
-        {conta !== 'nova' && <button className="btn fantasma" onClick={arquivar}>Encerrar conta</button>}
-        <button className="btn" onClick={salvar}>Salvar</button>
+        {conta !== 'nova' && <button className="btn fantasma" onClick={arquivar} disabled={salvando}>Encerrar conta</button>}
+        <button className="btn" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </Sheet>
   )

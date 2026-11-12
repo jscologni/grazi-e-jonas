@@ -149,13 +149,11 @@ function useSubiu(valores: Record<string, number>, escopo: string) {
 function Lancamentos({ month }: { month: string }) {
   const s = useStore()
   const [filtro, setFiltro] = useState<'todos' | 'in' | 'out' | string>('todos')
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string | null>(null)
+  const [catFiltro, setCatFiltro] = useState<{ mes: string; id: string | null }>({ mes: month, id: null })
+  const categoriaFiltro = catFiltro.mes === month ? catFiltro.id : null
+  const setCategoriaFiltro = (id: string | null) => setCatFiltro({ mes: month, id })
   const [aberto, setAberto] = useState<Tx | null>(null)
   const lancamentosRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setCategoriaFiltro(null)
-  }, [month])
 
   const doMes = s.txs.filter(t => t.month === month)
 
@@ -790,6 +788,7 @@ function ValorAnterior({ cartao, month, onClose, onSucesso }: { cartao: Card | n
 
 function EditarCartao({ cartao, onClose }: { cartao: Card | 'novo' | null; onClose: () => void }) {
   const s = useStore()
+  const [salvando, setSalvando] = useState(false)
   const [chave, setChave] = useState<string | null>(null)
   const [f, setF] = useState({ name: '', color: 'berinjela', closing_day: 3, due_day: 10, limit: '' })
   const k = cartao === 'novo' ? 'novo' : cartao?.id ?? null
@@ -798,36 +797,49 @@ function EditarCartao({ cartao, onClose }: { cartao: Card | 'novo' | null; onClo
     setF(cartao && cartao !== 'novo'
       ? { name: cartao.name, color: cartao.color, closing_day: cartao.closing_day, due_day: cartao.due_day, limit: cartao.limit_amount ? String(cartao.limit_amount) : '' }
       : { name: '', color: 'berinjela', closing_day: 3, due_day: 10, limit: '' })
+    setSalvando(false)
   }
   if (!k && chave) setChave(null)
   const salvar = async () => {
+    if (salvando) return
     if (!f.name.trim()) return s.toast('Dê um nome para o cartão', 'erro')
-    const row = { name: f.name.trim(), color: f.color, closing_day: f.closing_day, due_day: f.due_day, limit_amount: f.limit ? Number(f.limit.replace(/\./g, '').replace(',', '.')) : null }
-    const { error } = cartao === 'novo' ? await supabase.from('cards').insert(row) : await supabase.from('cards').update(row).eq('id', (cartao as Card).id)
-    if (error) return s.toast(say(error), 'erro')
-    await s.reload(); onClose()
+    setSalvando(true)
+    try {
+      const row = { name: f.name.trim(), color: f.color, closing_day: f.closing_day, due_day: f.due_day, limit_amount: f.limit ? Number(f.limit.replace(/\./g, '').replace(',', '.')) : null }
+      const { error } = cartao === 'novo' ? await supabase.from('cards').insert(row) : await supabase.from('cards').update(row).eq('id', (cartao as Card).id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao salvar cartão', 'erro')
+    }
   }
   const arquivar = async () => {
-    if (!cartao || cartao === 'novo') return
-    await supabase.from('cards').update({ archived: true }).eq('id', cartao.id)
-    await s.reload(); onClose()
+    if (!cartao || cartao === 'novo' || salvando) return
+    setSalvando(true)
+    try {
+      await supabase.from('cards').update({ archived: true }).eq('id', cartao.id)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   return (
-    <Sheet open={!!cartao} onClose={onClose} title={cartao === 'novo' ? 'Novo cartão' : 'Editar cartão'}>
-      <label className="campo"><span>Nome</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Nubank, Inter, Caixa…" /></label>
+    <Sheet open={!!cartao} onClose={salvando ? () => {} : onClose} title={cartao === 'novo' ? 'Novo cartão' : 'Editar cartão'}>
+      <label className="campo"><span>Nome</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Nubank, Inter, Caixa…" disabled={salvando} /></label>
       <div className="campo"><span>Cor</span>
-        <div className="chips">{CARD_COLORS.map(c => <button key={c} aria-label={c} aria-pressed={f.color === c} onClick={() => setF({ ...f, color: c })}
+        <div className="chips">{CARD_COLORS.map(c => <button key={c} aria-label={c} aria-pressed={f.color === c} onClick={() => !salvando && setF({ ...f, color: c })}
           className={`cor-${c}`} style={{ width: 40, height: 40, borderRadius: 0, outline: f.color === c ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
       </div>
       <div className="lado">
-        <label className="campo"><span>Fecha dia</span><input className="entrada num" type="number" min={1} max={31} inputMode="numeric" value={f.closing_day} onChange={e => setF({ ...f, closing_day: Number(e.target.value) })} /></label>
-        <label className="campo"><span>Vence dia</span><input className="entrada num" type="number" min={1} max={31} inputMode="numeric" value={f.due_day} onChange={e => setF({ ...f, due_day: Number(e.target.value) })} /></label>
+        <label className="campo"><span>Fecha dia</span><input className="entrada num" type="number" min={1} max={31} inputMode="numeric" value={f.closing_day} onChange={e => setF({ ...f, closing_day: Number(e.target.value) })} disabled={salvando} /></label>
+        <label className="campo"><span>Vence dia</span><input className="entrada num" type="number" min={1} max={31} inputMode="numeric" value={f.due_day} onChange={e => setF({ ...f, due_day: Number(e.target.value) })} disabled={salvando} /></label>
       </div>
-      <label className="campo"><span>Limite (opcional)</span><input className="entrada num" inputMode="decimal" value={f.limit} onChange={e => setF({ ...f, limit: e.target.value })} placeholder="5.000,00" /></label>
+      <label className="campo"><span>Limite (opcional)</span><input className="entrada num" inputMode="decimal" value={f.limit} onChange={e => setF({ ...f, limit: e.target.value })} placeholder="5.000,00" disabled={salvando} /></label>
       <p className="pequeno leve">Compras no dia do fechamento ou depois entram na fatura seguinte.</p>
       <div className="acoes">
-        {cartao !== 'novo' && <button className="btn fantasma" onClick={arquivar}>Tirar cartão</button>}
-        <button className="btn" onClick={salvar}>Salvar</button>
+        {cartao !== 'novo' && <button className="btn fantasma" onClick={arquivar} disabled={salvando}>Tirar cartão</button>}
+        <button className="btn" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </Sheet>
   )
@@ -888,33 +900,47 @@ function Caixinhas({ month }: { month: string }) {
 function MexerCaixinha({ goal, month, onClose }: { goal: Goal | null; month: string; onClose: () => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [id, setId] = useState<string | null>(null)
   const [tirar, setTirar] = useState(false)
-  if (goal && id !== goal.id) { setId(goal.id); c.set(0); setTirar(false) }
+  if (goal && id !== goal.id) { setId(goal.id); c.set(0); setTirar(false); setSalvando(false) }
   if (!goal && id) setId(null)
   const historico = goal ? s.moves.filter(m => m.goal_id === goal.id).slice(0, 8) : []
   const salvar = async () => {
-    if (!goal || c.value <= 0) return
-    const { error } = await supabase.from('goal_moves').insert({ goal_id: goal.id, amount: tirar ? -c.value : c.value, month })
-    if (error) return s.toast(say(error), 'erro')
-    s.toast(tirar ? `Tirou ${money(c.value)} de ${goal.name}` : `Guardou ${money(c.value)} em ${goal.name}`)
-    await s.reload(); onClose()
+    if (salvando || !goal || c.value <= 0) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('goal_moves').insert({ goal_id: goal.id, amount: tirar ? -c.value : c.value, month })
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      s.toast(tirar ? `Tirou ${money(c.value)} de ${goal.name}` : `Guardou ${money(c.value)} em ${goal.name}`)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao movimentar caixinha', 'erro')
+    }
   }
   const encerrar = async () => {
-    if (!goal) return
-    await supabase.from('goals').update({ archived: true }).eq('id', goal.id)
-    await s.reload(); onClose()
+    if (!goal || salvando) return
+    setSalvando(true)
+    try {
+      await supabase.from('goals').update({ archived: true }).eq('id', goal.id)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   return (
-    <Sheet open={!!goal} onClose={onClose} title={goal ? `${goal.emoji} ${goal.name}` : ''}>
+    <Sheet open={!!goal} onClose={salvando ? () => {} : onClose} title={goal ? `${goal.emoji} ${goal.name}` : ''}>
       <div className="segmento">
-        <button aria-pressed={!tirar} onClick={() => setTirar(false)}>Guardar</button>
-        <button aria-pressed={tirar} onClick={() => setTirar(true)}>Tirar</button>
+        <button aria-pressed={!tirar} onClick={() => !salvando && setTirar(false)}>Guardar</button>
+        <button aria-pressed={tirar} onClick={() => !salvando && setTirar(true)}>Tirar</button>
       </div>
       <div className={`visor ${tirar ? 'sai' : 'entra'} cabe`}><Cartaz value={c.value} size="g" /></div>
-      <Teclado onKey={c.press} />
+      <Teclado onKey={salvando ? () => {} : c.press} />
       <p className="pequeno leve">Conta no mês de {monthName(month)}{tirar ? ' e volta para a sobra.' : ' e sai da sobra.'}</p>
-      <button className={`btn cheio ${tirar ? 'tomate' : 'folha'}`} onClick={salvar} disabled={c.value <= 0}>{tirar ? 'Tirar da caixinha' : 'Guardar na caixinha'}</button>
+      <button className={`btn cheio ${tirar ? 'tomate' : 'folha'}`} onClick={salvar} disabled={c.value <= 0 || salvando}>
+        {salvando ? 'Salvando…' : tirar ? 'Tirar da caixinha' : 'Guardar na caixinha'}
+      </button>
       {historico.length > 0 && (
         <div className="folha-lista" style={{ marginTop: 18, boxShadow: 'none', border: '1px solid var(--linha)' }}>
           {historico.map(m => (
@@ -925,7 +951,7 @@ function MexerCaixinha({ goal, month, onClose }: { goal: Goal | null; month: str
           ))}
         </div>
       )}
-      <button className="btn fantasma cheio" style={{ marginTop: 14 }} onClick={encerrar}>Encerrar caixinha</button>
+      <button className="btn fantasma cheio" style={{ marginTop: 14 }} onClick={encerrar} disabled={salvando}>Encerrar caixinha</button>
     </Sheet>
   )
 }
@@ -933,27 +959,37 @@ function MexerCaixinha({ goal, month, onClose }: { goal: Goal | null; month: str
 function NovaCaixinha({ open, onClose }: { open: boolean; onClose: () => void }) {
   const s = useStore()
   const c = useCents(0)
+  const [salvando, setSalvando] = useState(false)
   const [f, setF] = useState({ name: '', emoji: '✈️', deadline: '', color: 'abobora' })
   const salvar = async () => {
+    if (salvando) return
     if (!f.name.trim() || c.value <= 0) return s.toast('Dê um nome e um valor de meta', 'erro')
-    const { error } = await supabase.from('goals').insert({ name: f.name.trim(), emoji: f.emoji, target: c.value, deadline: f.deadline || null, color: f.color })
-    if (error) return s.toast(say(error), 'erro')
-    setF({ name: '', emoji: '✈️', deadline: '', color: 'abobora' }); c.set(0)
-    await s.reload(); onClose()
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('goals').insert({ name: f.name.trim(), emoji: f.emoji, target: c.value, deadline: f.deadline || null, color: f.color })
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      setF({ name: '', emoji: '✈️', deadline: '', color: 'abobora' }); c.set(0)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+      s.toast('Erro ao criar caixinha', 'erro')
+    }
   }
   return (
-    <Sheet open={open} onClose={onClose} title="Nova caixinha">
-      <label className="campo"><span>Para quê</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Viagem, reserva, carro…" /></label>
-      <div className="chips" style={{ marginTop: 10 }}>{['✈️', '🛟', '🚗', '🏠', '💍', '👶', '🎓', '🎄', '🫙'].map(e => <button key={e} className="chip" aria-pressed={f.emoji === e} onClick={() => setF({ ...f, emoji: e })} style={{ fontSize: 20 }}>{e}</button>)}</div>
+    <Sheet open={open} onClose={salvando ? () => {} : onClose} title="Nova caixinha">
+      <label className="campo"><span>Para quê</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Viagem, reserva, carro…" disabled={salvando} /></label>
+      <div className="chips" style={{ marginTop: 10 }}>{['✈️', '🛟', '🚗', '🏠', '💍', '👶', '🎓', '🎄', '🫙'].map(e => <button key={e} className="chip" aria-pressed={f.emoji === e} onClick={() => !salvando && setF({ ...f, emoji: e })} style={{ fontSize: 20 }}>{e}</button>)}</div>
       <div className="campo"><span>Meta</span></div>
       <div className="visor entra" style={{ minHeight: 70, paddingTop: 0 }}><Cartaz value={c.value} size="g" /></div>
-      <Teclado onKey={c.press} />
-      <label className="campo"><span>Até quando (opcional)</span><input className="entrada" type="date" value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} /></label>
+      <Teclado onKey={salvando ? () => {} : c.press} />
+      <label className="campo"><span>Até quando (opcional)</span><input className="entrada" type="date" value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} disabled={salvando} /></label>
       <div className="campo"><span>Cor do pote</span>
-        <div className="chips">{GOAL_COLORS.map(cor => <button key={cor} aria-label={cor} aria-pressed={f.color === cor} onClick={() => setF({ ...f, color: cor })}
+        <div className="chips">{GOAL_COLORS.map(cor => <button key={cor} aria-label={cor} aria-pressed={f.color === cor} onClick={() => !salvando && setF({ ...f, color: cor })}
           style={{ width: 40, height: 40, borderRadius: 0, background: COR_POTE[cor], outline: f.color === cor ? '3px solid var(--tinta)' : 'none', outlineOffset: 2 }} />)}</div>
       </div>
-      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={salvar}>Criar caixinha</button>
+      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={salvar} disabled={salvando}>
+        {salvando ? 'Criando…' : 'Criar caixinha'}
+      </button>
     </Sheet>
   )
 }

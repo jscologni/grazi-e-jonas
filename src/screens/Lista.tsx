@@ -18,7 +18,12 @@ import { precosPorCodigo, type Oferta } from '../lib/web'
 const LerQR = lazy(() => import('./LerQR').then(m => ({ default: m.LerQR })))
 
 const lerMercado = () => { try { return localStorage.getItem('mercado-atual') } catch { return null } }
-const gravarMercado = (id: string | null) => { try { id ? localStorage.setItem('mercado-atual', id) : localStorage.removeItem('mercado-atual') } catch { /* sem armazenamento */ } }
+const gravarMercado = (id: string | null) => {
+  try {
+    if (id) localStorage.setItem('mercado-atual', id)
+    else localStorage.removeItem('mercado-atual')
+  } catch { /* sem armazenamento */ }
+}
 
 export function Lista() {
   const s = useStore()
