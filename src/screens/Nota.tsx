@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { Camera, ClipboardPaste } from 'lucide-react'
 import { dayMonth, money, norm } from '../lib/format'
 import { mercadoDoCnpj } from '../lib/mercado'
@@ -31,7 +31,7 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
   const [pend, setPend] = useState<NotaPendente | null>(null)
   const [camera, setCamera] = useState(false)
   const [texto, setTexto] = useState('')
-  const [marcados, setMarcados] = useState<Set<number>>(new Set())
+  const [desmarcados, setDesmarcados] = useState<Set<number>>(new Set())
   const [jaGuardada, setJaGuardada] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tripId, setTripId] = useState('') // tentar de novo não duplica a nota
@@ -40,13 +40,13 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
     setAberto(true)
     setTripId(crypto.randomUUID())
     const p = lerPendente()
-    setPend(p); setTexto(''); setJaGuardada(null)
+    setPend(p); setTexto(''); setDesmarcados(new Set()); setJaGuardada(null)
     setCamera(!p) // sem nota esperando: já abre a câmera
   }
   if (!open && aberto) { setAberto(false); setCamera(false) }
 
   const nota = useMemo(() => texto.trim().length > 30 ? lerNota(texto) : null, [texto])
-  useEffect(() => { setMarcados(new Set(nota?.itens.map((_, i) => i) ?? [])) }, [nota])
+  const marcados = useMemo(() => new Set((nota?.itens.map((_, i) => i) ?? []).filter(i => !desmarcados.has(i))), [nota, desmarcados])
 
   const lido = async (cnpj: string, chave: string, conteudo: string) => {
     setCamera(false)
@@ -96,8 +96,8 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
     } catch (e) { s.toast(say(e), 'erro') } finally { setBusy(false) }
   }
 
-  const descartar = () => { gravarPendente(null); setPend(null); setTexto(''); setCamera(true) }
-  const alternar = (i: number) => setMarcados(m => { const n = new Set(m); if (n.has(i)) n.delete(i); else n.add(i); return n })
+  const descartar = () => { gravarPendente(null); setPend(null); setTexto(''); setDesmarcados(new Set()); setCamera(true) }
+  const alternar = (i: number) => setDesmarcados(m => { const n = new Set(m); if (n.has(i)) n.delete(i); else n.add(i); return n })
   const qtdItens = nota?.itens.length ?? 0
 
   return (
@@ -134,7 +134,7 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
           <button className="btn folha cheio" style={{ marginTop: 18 }} onClick={guardar} disabled={busy || !marcados.size}>
             {busy ? 'Guardando…' : `Guardar ${marcados.size} ${marcados.size === 1 ? 'preço' : 'preços'}`}
           </button>
-          <button className="btn fantasma cheio" style={{ marginTop: 10 }} onClick={() => setTexto('')}>Colar de novo</button>
+          <button className="btn fantasma cheio" style={{ marginTop: 10 }} onClick={() => { setTexto(''); setDesmarcados(new Set()) }}>Colar de novo</button>
         </>
       ) : (
         <ol className="passos">

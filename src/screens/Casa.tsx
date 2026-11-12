@@ -3,7 +3,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Broom, Package } from 'lucide-react'
 import { CHORE_SUGGESTIONS, SECTIONS, guessSection } from '../lib/catalog'
 import { choreStatus } from '../lib/finance'
-import { ago, monthOf } from '../lib/format'
+import { ago, monthOf, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import type { Chore, Pantry, PantryStatus } from '../lib/types'
@@ -103,30 +103,41 @@ function Despensa() {
 
 function EditarDespensa({ item, onClose }: { item: Pantry | null; onClose: () => void }) {
   const s = useStore()
+  const [salvando, setSalvando] = useState(false)
   const [f, setF] = useState<Pantry | null>(null)
-  if (item && f?.id !== item.id) setF(item)
+  if (item && f?.id !== item.id) { setF(item); setSalvando(false) }
   const salvar = async () => {
-    if (!f) return
-    const { error } = await supabase.from('pantry').update({ name: f.name.trim(), section: f.section }).eq('id', f.id)
-    if (error) return s.toast(say(error), 'erro')
-    await s.reload(); onClose()
+    if (!f || salvando) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('pantry').update({ name: f.name.trim(), section: f.section }).eq('id', f.id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   const apagar = async () => {
-    if (!f) return
-    const { error } = await supabase.from('pantry').delete().eq('id', f.id)
-    if (error) return s.toast(say(error), 'erro')
-    await s.reload(); onClose()
+    if (!f || salvando) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('pantry').delete().eq('id', f.id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   return (
-    <Sheet open={!!item} onClose={onClose} title="Item da despensa">
+    <Sheet open={!!item} onClose={salvando ? () => {} : onClose} title="Item da despensa">
       {f && <>
-        <label className="campo"><span>Nome</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
+        <label className="campo"><span>Nome</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} disabled={salvando} /></label>
         <div className="campo"><span>Seção</span>
-          <div className="chips rola">{SECTIONS.map(sec => <button key={sec.id} className="chip" aria-pressed={f.section === sec.id} onClick={() => setF({ ...f, section: sec.id })}>{sec.emoji} {sec.name}</button>)}</div>
+          <div className="chips rola">{SECTIONS.map(sec => <button key={sec.id} className="chip" aria-pressed={f.section === sec.id} onClick={() => !salvando && setF({ ...f, section: sec.id })}>{sec.emoji} {sec.name}</button>)}</div>
         </div>
         <div className="acoes">
-          <button className="btn fantasma" onClick={apagar}>Tirar da despensa</button>
-          <button className="btn" onClick={salvar}>Salvar</button>
+          <button className="btn fantasma" onClick={apagar} disabled={salvando}>Tirar da despensa</button>
+          <button className="btn" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
         </div>
       </>}
     </Sheet>
@@ -138,11 +149,12 @@ function Tarefas() {
   const s = useStore()
   const [nova, setNova] = useState(false)
   const [editar, setEditar] = useState<Chore | null>(null)
-  const mes = monthOf(new Date())
+  const mes = monthOf(today())
   const placar = s.members.map(m => ({ m, n: s.choreLog.filter(l => l.done_by === m.user_id && monthOf(new Date(l.done_at)) === mes).length }))
   const ordenadas = [...s.chores].sort((a, b) => choreStatus(a.last_done_at, a.every_days).days - choreStatus(b.last_done_at, b.every_days).days)
 
   const feito = async (c: Chore) => {
+    if ('vibrate' in navigator) navigator.vibrate?.(15)
     const outros = s.members.filter(m => m.user_id !== s.me?.user_id)
     const proximo = c.rotate && outros.length ? outros[0].user_id : c.assignee
     const agora = new Date().toISOString()
@@ -198,6 +210,7 @@ function Tarefas() {
 
 function EditarTarefa({ tarefa, onClose }: { tarefa: Chore | 'nova' | null; onClose: () => void }) {
   const s = useStore()
+  const [salvando, setSalvando] = useState(false)
   const [chave, setChave] = useState<string | null>(null)
   const [f, setF] = useState({ name: '', emoji: '🧹', every_days: 7, rotate: true, assignee: null as string | null })
   const k = tarefa === 'nova' ? 'nova' : tarefa?.id ?? null
@@ -206,42 +219,54 @@ function EditarTarefa({ tarefa, onClose }: { tarefa: Chore | 'nova' | null; onCl
     setF(tarefa && tarefa !== 'nova'
       ? { name: tarefa.name, emoji: tarefa.emoji, every_days: tarefa.every_days, rotate: tarefa.rotate, assignee: tarefa.assignee }
       : { name: '', emoji: '🧹', every_days: 7, rotate: true, assignee: s.me?.user_id ?? null })
+    setSalvando(false)
   }
   if (!k && chave) setChave(null)
   const salvar = async () => {
+    if (salvando) return
     if (!f.name.trim()) return s.toast('Dê um nome para a tarefa', 'erro')
-    const row = { ...f, name: f.name.trim(), every_days: Math.max(1, Math.min(365, f.every_days || 1)) }
-    const { error } = tarefa === 'nova' ? await supabase.from('chores').insert(row) : await supabase.from('chores').update(row).eq('id', (tarefa as Chore).id)
-    if (error) return s.toast(say(error), 'erro')
-    await s.reload(); onClose()
+    setSalvando(true)
+    try {
+      const row = { ...f, name: f.name.trim(), every_days: Math.max(1, Math.min(365, f.every_days || 1)) }
+      const { error } = tarefa === 'nova' ? await supabase.from('chores').insert(row) : await supabase.from('chores').update(row).eq('id', (tarefa as Chore).id)
+      if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   const apagar = async () => {
-    if (!tarefa || tarefa === 'nova') return
-    await supabase.from('chores').delete().eq('id', tarefa.id)
-    await s.reload(); onClose()
+    if (!tarefa || tarefa === 'nova' || salvando) return
+    setSalvando(true)
+    try {
+      await supabase.from('chores').delete().eq('id', tarefa.id)
+      await s.reload(); onClose()
+    } catch {
+      setSalvando(false)
+    }
   }
   const usadas = new Set(s.chores.map(c => c.name))
   return (
-    <Sheet open={!!tarefa} onClose={onClose} title={tarefa === 'nova' ? 'Nova tarefa' : 'Editar tarefa'}>
+    <Sheet open={!!tarefa} onClose={salvando ? () => {} : onClose} title={tarefa === 'nova' ? 'Nova tarefa' : 'Editar tarefa'}>
       {tarefa === 'nova' && (
         <div className="chips rola" style={{ marginBottom: 6 }}>
-          {CHORE_SUGGESTIONS.filter(c => !usadas.has(c.name)).map(c => <button key={c.name} className="chip" onClick={() => setF({ ...f, name: c.name, emoji: c.emoji, every_days: c.every })}>{c.emoji} {c.name}</button>)}
+          {CHORE_SUGGESTIONS.filter(c => !usadas.has(c.name)).map(c => <button key={c.name} className="chip" onClick={() => !salvando && setF({ ...f, name: c.name, emoji: c.emoji, every_days: c.every })}>{c.emoji} {c.name}</button>)}
         </div>
       )}
-      <label className="campo"><span>Tarefa</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
-      <div className="chips" style={{ marginTop: 10 }}>{['🧹', '🗑️', '🍽️', '🧺', '🚿', '🛏️', '🪴', '🐶', '🚗', '🧽'].map(e => <button key={e} className="chip" aria-pressed={f.emoji === e} onClick={() => setF({ ...f, emoji: e })} style={{ fontSize: 20 }}>{e}</button>)}</div>
+      <label className="campo"><span>Tarefa</span><input className="entrada" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} disabled={salvando} /></label>
+      <div className="chips" style={{ marginTop: 10 }}>{['🧹', '🗑️', '🍽️', '🧺', '🚿', '🛏️', '🪴', '🐶', '🚗', '🧽'].map(e => <button key={e} className="chip" aria-pressed={f.emoji === e} onClick={() => !salvando && setF({ ...f, emoji: e })} style={{ fontSize: 20 }}>{e}</button>)}</div>
       <label className="campo"><span>A cada quantos dias</span>
-        <input className="entrada num" type="number" min={1} max={365} inputMode="numeric" value={f.every_days} onChange={e => setF({ ...f, every_days: Number(e.target.value) })} /></label>
+        <input className="entrada num" type="number" min={1} max={365} inputMode="numeric" value={f.every_days} onChange={e => setF({ ...f, every_days: Number(e.target.value) })} disabled={salvando} /></label>
       <div className="campo"><span>Vez de quem</span>
-        <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={f.assignee === m.user_id} onClick={() => setF({ ...f, assignee: m.user_id })}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
+        <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={f.assignee === m.user_id} onClick={() => !salvando && setF({ ...f, assignee: m.user_id })}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
       </div>
       <label className="campo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input type="checkbox" checked={f.rotate} onChange={e => setF({ ...f, rotate: e.target.checked })} style={{ width: 22, height: 22 }} />
+        <input type="checkbox" checked={f.rotate} onChange={e => !salvando && setF({ ...f, rotate: e.target.checked })} style={{ width: 22, height: 22 }} disabled={salvando} />
         <span style={{ margin: 0 }}>Rodízio: quem fizer passa a vez para o outro</span>
       </label>
       <div className="acoes">
-        {tarefa !== 'nova' && <button className="btn fantasma" onClick={apagar}>Apagar</button>}
-        <button className="btn" onClick={salvar}>Salvar</button>
+        {tarefa !== 'nova' && <button className="btn fantasma" onClick={apagar} disabled={salvando}>Apagar</button>}
+        <button className="btn" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </Sheet>
   )

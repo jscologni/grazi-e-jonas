@@ -77,8 +77,10 @@ export function PullToRefresh({ children, onRefresh, aba }: PullToRefreshProps) 
 
   const pullYRef = useRef(0)
   const refreshingRef = useRef(false)
-  pullYRef.current = pullY
-  refreshingRef.current = refreshing
+  useEffect(() => {
+    pullYRef.current = pullY
+    refreshingRef.current = refreshing
+  }, [pullY, refreshing])
 
   const isInicio = aba === 'inicio'
 

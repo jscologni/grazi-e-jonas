@@ -47,13 +47,14 @@ export function Lista() {
 
   const eans = [...new Set(abertos.map(i => i.ean).filter(Boolean) as string[])].sort().join(',')
   useEffect(() => {
-    if (!eans) { setWeb([]); return }
+    if (!eans) return
     let vivo = true
     precosPorCodigo(eans.split(',')).then(o => { if (vivo) setWeb(o) }).catch(() => {})
     return () => { vivo = false }
   }, [eans])
-  const ofertasDe = (ean: string | null) => ean ? web.filter(o => o.ean === ean).sort((a, b) => a.preco - b.preco) : []
+  const ofertasDe = (ean: string | null) => ean && eans ? web.filter(o => o.ean === ean).sort((a, b) => a.preco - b.preco) : []
   const cestaSites = useMemo(() => {
+    if (!eans) return { com: 0, lojas: [] }
     const com = abertos.filter(i => i.ean)
     const lojas = new Map<string, { mercado: string; total: number; n: number }>()
     for (const it of com) for (const o of web.filter(x => x.ean === it.ean)) {
@@ -61,7 +62,7 @@ export function Lista() {
       r.total += o.preco * (+it.qty || 1); r.n++; lojas.set(o.loja, r)
     }
     return { com: com.length, lojas: [...lojas.values()].sort((a, b) => b.n - a.n || a.total - b.total) }
-  }, [abertos, web])
+  }, [abertos, web, eans])
 
   const grupos = useMemo(() => SECTIONS.map(sec => ({
     sec, itens: s.items.filter(i => i.section === sec.id).sort((a, b) => Number(a.checked) - Number(b.checked) || a.created_at.localeCompare(b.created_at)),
@@ -99,6 +100,7 @@ export function Lista() {
 
   const marcar = async (item: Item, el: HTMLElement | null) => {
     const checked = !item.checked
+    if ('vibrate' in navigator) navigator.vibrate?.(12)
     if (checked) voarParaSacola(el, item.name, 300)
     if (checked && mercado) setPrecoDe(item)
     s.patch('items', it => it.map(i => i.id === item.id ? { ...i, checked, checked_by: checked ? s.me?.user_id ?? null : null, price: checked ? i.price : null } : i))
@@ -449,7 +451,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
           amount: total, description: mercadoEscolhido ? `Mercado · ${mercadoEscolhido.name}` : 'Mercado',
           category_id: mercadoCat?.id ?? null, member_id: quem, occurred_on: today(), method: metodo,
           card_id: metodo === 'credito' ? card?.id ?? null : null,
-          month: metodo === 'credito' && card ? invoiceMonth(today(), card) : monthOf(new Date()),
+          month: metodo === 'credito' && card ? invoiceMonth(today(), card) : monthOf(today()),
           installment: metodo === 'credito' ? 1 : null, installments: metodo === 'credito' ? 1 : null,
           account_id: metodo === 'credito' ? null : conta,
         } : null,

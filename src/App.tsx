@@ -1,6 +1,6 @@
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { monthOf } from './lib/format'
+import { monthOf, today } from './lib/format'
 import { say, useStore } from './lib/store'
 import { Casa as CasaTela } from './screens/Casa'
 import { Dinheiro } from './screens/Dinheiro'
@@ -28,7 +28,7 @@ const lerAba = (): Aba => {
 export default function App() {
   const s = useStore()
   const [aba, setAba] = useState<Aba>(lerAba)
-  const [mes, setMes] = useState(monthOf(new Date()))
+  const [mes, setMes] = useState(() => monthOf(today()))
   const [lancar, setLancar] = useState(false)
   const [fabVisivel, setFabVisivel] = useState(true)
   const [dir, setDir] = useState(0)

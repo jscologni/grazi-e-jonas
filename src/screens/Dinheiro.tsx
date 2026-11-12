@@ -24,7 +24,7 @@ export function Dinheiro({ month, setMonth }: { month: string; setMonth: (m: str
         <MesNav month={month} onChange={setMonth} />
       </div>
 
-      <Etiqueta month={month} {...res} saldo={month === monthOf(new Date()) ? saldoContas(s.accounts, s.txs, s.cardPays) : null} vale={saldoVale(s.accounts, s.txs, s.cardPays)} />
+      <Etiqueta month={month} {...res} saldo={month === monthOf(today()) ? saldoContas(s.accounts, s.txs, s.cardPays) : null} vale={saldoVale(s.accounts, s.txs, s.cardPays)} />
 
       <div className="abas" role="tablist">
         {([['mes', 'Lançamentos'], ['saldos', 'Saldos'], ['contas', 'Contas fixas'], ['cartoes', 'Cartões'], ['caixinhas', 'Caixinhas']] as [Aba, string][]).map(([id, n]) => (

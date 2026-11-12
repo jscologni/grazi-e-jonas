@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Bell, Broom, FileSpreadsheet, ShoppingBasket, Sparkles, UtensilsCrossed, Wallet } from 'lucide-react'
 import { avisoTeste, desligarAvisos, estadoAvisos, ligarAvisos, type Estado } from '../lib/avisos'
 import { accountBalance, choreStatus } from '../lib/finance'
-import { dayMonth, firstName, money, monthOf } from '../lib/format'
+import { dayMonth, firstName, money, monthOf, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Adesivo, Cartaz, Sheet } from '../ui'
@@ -29,7 +29,7 @@ export function Inicio({ ir }: { ir: Ir }) {
   const [cascata] = useState(() => !jaEntrou)
   useEffect(() => { jaEntrou = true }, [])
   const ordem = (i: number) => ({ ['--i' as string]: i })
-  const mes = monthOf(new Date())
+  const mes = monthOf(today())
   const faltam = s.items.filter(i => !i.checked)
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)

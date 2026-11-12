@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 export type Aba = 'inicio' | 'lista' | 'dinheiro' | 'casa'
 
@@ -20,10 +20,9 @@ export const ABAS: { id: Aba; nome: string; ico: ReactNode }[] = [
 export function Menu({ aba, ir, contador }: { aba: Aba; ir: (a: Aba) => void; contador: number }) {
   const reduce = useReducedMotion()
   const i = ABAS.findIndex(a => a.id === aba)
-  const anterior = useRef(i)
-  // lido no render (ainda é a aba anterior); atualizado depois que a tela muda
-  const dir = Math.sign(i - anterior.current) || 0
-  useEffect(() => { anterior.current = i }, [i])
+  const [prevI, setPrevI] = useState(i)
+  const dir = Math.sign(i - prevI) || 0
+  if (prevI !== i) setPrevI(i)
   const left = `${i * 25}%`
   const desliza = reduce ? { duration: 0 } : { type: 'spring' as const, stiffness: 210, damping: 22, mass: 0.9 }
 

@@ -23,11 +23,19 @@ export function Comparar({ item, onClose }: { item: Item | null; onClose: () => 
   if (item && chave !== item.id) {
     setChave(item.id)
     const t = item.product ?? item.name
-    setTermo(t); setOfertas(null); setErro('')
+    setTermo(t); setOfertas(null); setErro(''); setBuscando(true)
   }
   if (!item && chave) setChave(null)
   // busca assim que abre (uma vez por item)
-  useEffect(() => { if (item) void buscar(item.product ?? item.name) }, [item?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!item) return
+    let vivo = true
+    buscarNosSites(item.product ?? item.name)
+      .then(res => { if (vivo) setOfertas(res) })
+      .catch(e => { if (vivo) { setErro(say(e)); setOfertas([]) } })
+      .finally(() => { if (vivo) setBuscando(false) })
+    return () => { vivo = false }
+  }, [item?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const escolher = async (ean: string, nome: string) => {
     if (!item) return
