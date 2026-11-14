@@ -413,6 +413,7 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
   const [quem, setQuem] = useState<string | null>(null)
   const [conta, setConta] = useState<string | null>(null)
   const [cartao, setCartao] = useState<string | null>(null)
+  const [data, setData] = useState<string | null>(null)
   const cards = s.cards.filter(k => !k.archived)
   if (estado && id !== estado.bill.id) {
     setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id))
@@ -421,15 +422,19 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
     const noCartao = ultima?.method === 'credito' && cards.length > 0
     setMetodo(noCartao ? 'credito' : ultima && ultima.method !== 'vale' && ultima.method !== 'credito' ? ultima.method : 'pix')
     setCartao(cards.find(k => k.id === ultima?.card_id)?.id ?? cards[0]?.id ?? null)
+    setData(null)
     setSalvando(false)
   }
   if (!estado && id) setId(null)
   const card = metodo === 'credito' ? cards.find(k => k.id === cartao) : undefined
-  // no cartão, a cobrança cai no dia de vencimento da conta e vai para a fatura daquele dia
-  const cobranca = estado ? iso(dueDate(month, estado.bill.due_day)) : today()
-  const fatura = card ? invoiceMonth(cobranca, card) : null
+  // no cartão, a cobrança parte do vencimento (ajustável dentro do mês da conta) e vai para a fatura daquele dia
+  const vence = estado ? iso(dueDate(month, estado.bill.due_day)) : today()
+  const dia = data ?? (metodo === 'credito' ? vence : today())
+  const fatura = card ? invoiceMonth(dia, card) : null
   const pagar = async () => {
     if (salvando || !estado || c.value <= 0) return
+    // o mês da conta paga no cartão sai do dia da cobrança, então ele precisa ficar no mês da conta
+    if (card && monthOf(dia) !== month) return s.toast(`A cobrança precisa ser em ${monthName(month)}`, 'erro')
     setSalvando(true)
     try {
       const contasCat = s.categories.find(k => k.kind === 'out' && k.name === 'Contas')
@@ -437,8 +442,8 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
         kind: 'out', amount: c.value, description: estado.bill.name, category_id: estado.bill.category_id ?? contasCat?.id ?? null,
         member_id: quem, method: metodo, bill_id: estado.bill.id,
         ...(card && fatura
-          ? { occurred_on: cobranca, month: fatura, card_id: card.id, account_id: null, installment: 1, installments: 1 }
-          : { occurred_on: today(), month, account_id: conta }),
+          ? { occurred_on: dia, month: fatura, card_id: card.id, account_id: null, installment: 1, installments: 1 }
+          : { occurred_on: dia, month, account_id: conta }),
       })
       if (error) {
         setSalvando(false)
@@ -473,16 +478,19 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
           <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
           <Teclado onKey={salvando ? () => {} : c.press} />
           <div className="campo"><span>Pago com</span>
-            <div className="chips">{METHODS.filter(m => m.id !== 'vale' && (m.id !== 'credito' || cards.length)).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => !salvando && setMetodo(m.id as Method)}>{m.label}</button>)}</div>
+            <div className="chips">{METHODS.filter(m => m.id !== 'vale' && (m.id !== 'credito' || cards.length)).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => { if (!salvando) { setMetodo(m.id as Method); setData(null) } }}>{m.label}</button>)}</div>
             {metodo === 'credito' && (
               <>
                 <div className="chips" style={{ marginTop: 8 }}>
                   {cards.map(k => <button key={k.id} className="chip" aria-pressed={cartao === k.id} onClick={() => !salvando && setCartao(k.id)}>💳 {k.name}</button>)}
                 </div>
-                {fatura && <p className="leve pequeno" style={{ margin: '8px 0 0' }}>Cobrança dia {dayMonth(cobranca)}, entra na fatura de {monthShort(fatura)}.</p>}
+                {fatura && <p className="leve pequeno" style={{ margin: '8px 0 0' }}>Cobrança dia {dayMonth(dia)}, entra na fatura de {monthShort(fatura)}.</p>}
               </>
             )}
           </div>
+          <label className="campo"><span>{metodo === 'credito' ? 'Cobrada em' : 'Paga em'}</span>
+            <input className="entrada" type="date" value={dia} onChange={e => !salvando && setData(e.target.value || null)}
+              min={metodo === 'credito' ? month : undefined} max={metodo === 'credito' ? iso(dueDate(month, 31)) : undefined} /></label>
           <div className="campo"><span>Quem pagou</span>
             <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { if (!salvando) { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) } }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
           </div>
