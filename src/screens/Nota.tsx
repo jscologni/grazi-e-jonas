@@ -1,11 +1,12 @@
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { Camera, ClipboardPaste } from 'lucide-react'
-import { dayMonth, money, norm } from '../lib/format'
+import { dayMonth, money, norm, today } from '../lib/format'
 import { mercadoDoCnpj } from '../lib/mercado'
 import { lerNota, type ItemNota } from '../lib/nota'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Sheet } from '../ui'
+import { EscolherPagamento, usePagamento } from './Pagamento'
 
 const LerQR = lazy(() => import('./LerQR').then(m => ({ default: m.LerQR })))
 
@@ -35,17 +36,20 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
   const [jaGuardada, setJaGuardada] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tripId, setTripId] = useState('') // tentar de novo não duplica a nota
+  const pg = usePagamento()
 
   if (open && !aberto) {
     setAberto(true)
     setTripId(crypto.randomUUID())
     const p = lerPendente()
-    setPend(p); setTexto(''); setDesmarcados(new Set()); setJaGuardada(null)
+    setPend(p); setTexto(''); setDesmarcados(new Set()); setJaGuardada(null); pg.reiniciar(true)
     setCamera(!p) // sem nota esperando: já abre a câmera
   }
   if (!open && aberto) { setAberto(false); setCamera(false) }
 
   const nota = useMemo(() => texto.trim().length > 30 ? lerNota(texto) : null, [texto])
+  // o gasto é um só, com o valor a pagar da nota (já com descontos), não produto por produto
+  const totalNota = nota ? nota.total ?? Math.round(nota.itens.reduce((a, i) => a + i.total, 0) * 100) / 100 : 0
   const marcados = useMemo(() => new Set((nota?.itens.map((_, i) => i) ?? []).filter(i => !desmarcados.has(i))), [nota, desmarcados])
 
   const lido = async (cnpj: string, chave: string, conteudo: string) => {
@@ -57,7 +61,8 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
     const comMercado = { ...base, mercadoId: m?.id ?? null, mercado: m?.name ?? null }
     setPend(comMercado); gravarPendente(comMercado)
     const { data } = await supabase.from('trips').select('created_at').eq('access_key', chave).limit(1)
-    if (data?.length) setJaGuardada(data[0].created_at)
+    // nota já guardada: o gasto provavelmente já foi lançado, então não marca de novo
+    if (data?.length) { setJaGuardada(data[0].created_at); pg.setLancar(false) }
   }
 
   const colar = async () => {
@@ -83,14 +88,15 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
         mercadoId = m?.id ?? null; mercadoNome = m?.name ?? null
       }
       const quando = nota.data ? `${nota.data}T12:00:00` : new Date().toISOString()
+      const tx = pg.linha(totalNota, mercadoNome ? `Mercado · ${mercadoNome}` : 'Mercado', nota.data ?? today())
       const { error } = await supabase.rpc('guardar_compra', {
-        p_trip: tripId, p_market: mercadoId, p_total: nota.total ?? itens.reduce((a, i) => a + i.total, 0),
-        p_itens: itens.length, p_chave: pend?.chave ?? '', p_tx: null, p_apagar: [],
+        p_trip: tripId, p_market: mercadoId, p_total: totalNota,
+        p_itens: itens.length, p_chave: pend?.chave ?? '', p_tx: tx, p_apagar: [],
         p_precos: itens.map((it: ItemNota) => ({ name: it.nome, norm: norm(it.nome), unit: it.un, unit_price: it.unit, ean: it.ean, seen_at: quando })),
       })
       if (error) throw error
       gravarPendente(null)
-      s.toast(`${itens.length} ${itens.length === 1 ? 'preço guardado' : 'preços guardados'}${mercadoNome ? ` do ${mercadoNome}` : ''}`)
+      s.toast(`${itens.length} ${itens.length === 1 ? 'preço guardado' : 'preços guardados'}${mercadoNome ? ` do ${mercadoNome}` : ''}${tx ? ` e ${money(totalNota)} lançado` : ''}`)
       await s.reload()
       onClose()
     } catch (e) { s.toast(say(e), 'erro') } finally { setBusy(false) }
@@ -117,7 +123,7 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
             </div>
           </div>
           <p className="pequeno leve" style={{ margin: '10px 4px' }}>
-            Desmarque o que não quiser guardar. Só os preços são guardados: o gasto da compra você lança em Dinheiro, se quiser.
+            Desmarque os preços que não quiser guardar. O gasto entra como um lançamento só, de mercado.
           </p>
           <div className="folha-lista" style={{ boxShadow: 'none', border: '1px solid var(--linha)' }}>
             {nota.itens.map((it, i) => (
@@ -131,8 +137,9 @@ export function EscanearNota({ open, onClose }: { open: boolean; onClose: () => 
               </label>
             ))}
           </div>
-          <button className="btn folha cheio" style={{ marginTop: 18 }} onClick={guardar} disabled={busy || !marcados.size}>
-            {busy ? 'Guardando…' : `Guardar ${marcados.size} ${marcados.size === 1 ? 'preço' : 'preços'}`}
+          <EscolherPagamento p={pg} rotulo={`Lançar ${money(totalNota)} como gasto de mercado`} />
+          <button className="btn folha cheio" style={{ marginTop: 18 }} onClick={guardar} disabled={busy || !marcados.size || !pg.pronto}>
+            {busy ? 'Guardando…' : pg.lancar && totalNota > 0 ? `Guardar preços e lançar ${money(totalNota)}` : `Guardar ${marcados.size} ${marcados.size === 1 ? 'preço' : 'preços'}`}
           </button>
           <button className="btn fantasma cheio" style={{ marginTop: 10 }} onClick={() => { setTexto(''); setDesmarcados(new Set()) }}>Colar de novo</button>
         </>

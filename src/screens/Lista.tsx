@@ -1,15 +1,15 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { QrCode, ScanLine, Search, ShoppingCart, Tag } from 'lucide-react'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { MARKET_SUGGESTIONS, METHODS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
-import { basketByMarket, contaPadrao, contaVale, invoiceMonth, latestByMarket } from '../lib/finance'
-import { ago, money, monthOf, norm, today } from '../lib/format'
+import { MARKET_SUGGESTIONS, SECTIONS, guessSection, parseItem, qtyLabel } from '../lib/catalog'
+import { basketByMarket, latestByMarket } from '../lib/finance'
+import { ago, money, norm, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { enviarFila, gravarOuGuardar, tamanhoFila } from '../lib/fila'
-import type { Item, Market, Method, Price } from '../lib/types'
+import type { Item, Market, Price } from '../lib/types'
 import { Adesivo, Cartaz, Sheet, Teclado, useCents, voarParaSacola } from '../ui'
-import { EscolherConta } from './Saldos'
+import { EscolherPagamento, usePagamento } from './Pagamento'
 import { Comparar } from './Comparar'
 import { EscanearNota, lerPendente } from './Nota'
 import { mercadoDoCnpj } from '../lib/mercado'
@@ -405,22 +405,15 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
   const c = useCents(soma)
   const [aberto, setAberto] = useState(false)
   const [mercadoId, setMercadoId] = useState<string | null>(null)
-  const [lancar, setLancar] = useState(true)
-  const [metodo, setMetodo] = useState<Method>('debito')
-  const [cartao, setCartao] = useState<string | null>(null)
-  const [quem, setQuem] = useState<string | null>(null)
-  const [conta, setConta] = useState<string | null>(null)
+  const pg = usePagamento()
   const [chave, setChave] = useState<string | null>(null)
   const [lendo, setLendo] = useState(false)
   const [busy, setBusy] = useState(false)
   const [tripId, setTripId] = useState('') // mesmo código ao tentar de novo: não duplica a compra
-  if (open && !aberto) { setAberto(true); setTripId(crypto.randomUUID()); c.set(soma); setMercadoId(mercado?.id ?? null); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id)); setChave(null) }
+  if (open && !aberto) { setAberto(true); setTripId(crypto.randomUUID()); c.set(soma); setMercadoId(mercado?.id ?? null); pg.reiniciar(); setChave(null) }
   if (!open && aberto) setAberto(false)
 
-  const cards = s.cards.filter(k => !k.archived)
   const mercadoEscolhido = s.markets.find(m => m.id === mercadoId)
-  const vale = contaVale(s.accounts, quem)
-  const ehVale = (id: string | null) => s.accounts.find(a => a.id === id)?.kind === 'alimentacao'
 
   const daNota = async (cnpj: string, key: string) => {
     setLendo(false); setChave(key)
@@ -438,8 +431,7 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
       await enviarFila()
       if (tamanhoFila() > 0) throw new Error('Failed to fetch')
       const total = c.value
-      const card = cards.find(k => k.id === cartao)
-      const mercadoCat = s.categories.find(k => k.kind === 'out' && norm(k.name) === 'mercado')
+      const tx = pg.linha(total, mercadoEscolhido ? `Mercado · ${mercadoEscolhido.name}` : 'Mercado', today())
       const precos = riscados.filter(i => i.price != null && i.price > 0).map(i => ({
         name: i.name, norm: norm(i.name), unit: i.unit, unit_price: i.price, ean: i.ean,
       }))
@@ -447,18 +439,11 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
       const { error } = await supabase.rpc('guardar_compra', {
         p_trip: tripId, p_market: mercadoId, p_total: total, p_itens: riscados.length, p_chave: chave ?? '',
         p_precos: precos, p_apagar: ids,
-        p_tx: lancar && total > 0 ? {
-          amount: total, description: mercadoEscolhido ? `Mercado · ${mercadoEscolhido.name}` : 'Mercado',
-          category_id: mercadoCat?.id ?? null, member_id: quem, occurred_on: today(), method: metodo,
-          card_id: metodo === 'credito' ? card?.id ?? null : null,
-          month: metodo === 'credito' && card ? invoiceMonth(today(), card) : monthOf(today()),
-          installment: metodo === 'credito' ? 1 : null, installments: metodo === 'credito' ? 1 : null,
-          account_id: metodo === 'credito' ? null : conta,
-        } : null,
+        p_tx: tx,
       })
       if (error) throw error
       s.patch('items', it => it.filter(i => !ids.includes(i.id)))
-      s.toast(lancar && total > 0 ? `Compra fechada: ${money(total)} lançado` : 'Compra fechada')
+      s.toast(tx ? `Compra fechada: ${money(total)} lançado` : 'Compra fechada')
       await s.reload()
       onDone()
     } catch (e) { s.toast(say(e), 'erro') } finally { setBusy(false) }
@@ -480,36 +465,10 @@ function FecharCompra({ open, mercado, onClose, onDone }: { open: boolean; merca
         {chave && <p className="pequeno leve" style={{ margin: '6px 4px 0' }}>Nota identificada pelo QR.</p>}
       </div>
 
-      <label className="campo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input type="checkbox" checked={lancar} onChange={e => setLancar(e.target.checked)} style={{ width: 22, height: 22 }} />
-        <span style={{ margin: 0 }}>Lançar como gasto no mês</span>
-      </label>
-
-      {lancar && (
-        <>
-          <div className="campo"><span>Quem pagou</span>
-            <div className="chips">
-              {s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) }}>
-                <Adesivo fruit={m.fruit} size={22} /> {m.name}</button>)}
-            </div>
-          </div>
-          <div className="campo"><span>Como pagou</span>
-            <div className="chips">
-              {METHODS.filter(m => m.id !== 'boleto' && (m.id !== 'vale' || vale)).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id}
-                onClick={() => { setMetodo(m.id as Method); if (m.id === 'credito' && !cartao) setCartao(cards[0]?.id ?? null); if (m.id === 'vale') setConta(vale?.id ?? null); else if (ehVale(conta)) setConta(contaPadrao(s.accounts, quem)) }}>{m.label}</button>)}
-            </div>
-            {metodo === 'credito' && (
-              cards.length
-                ? <div className="chips" style={{ marginTop: 8 }}>{cards.map(k => <button key={k.id} className="chip" aria-pressed={cartao === k.id} onClick={() => setCartao(k.id)}>💳 {k.name}</button>)}</div>
-                : <p className="pequeno" style={{ color: 'var(--tomate)', fontWeight: 700 }}>Cadastre um cartão em Dinheiro › Cartões.</p>
-            )}
-          </div>
-          {metodo !== 'credito' && <EscolherConta value={conta} onChange={id => { setConta(id); if (ehVale(id)) setMetodo('vale'); else if (metodo === 'vale') setMetodo('debito') }} titulo="Saiu de qual conta" />}
-        </>
-      )}
+      <EscolherPagamento p={pg} />
 
       <button className="btn tomate cheio" style={{ marginTop: 22 }} onClick={confirmar}
-        disabled={busy || (lancar && metodo === 'credito' && !cartao)}>
+        disabled={busy || !pg.pronto}>
         {busy ? 'Fechando…' : 'Fechar compra'}
       </button>
       {lendo && <Suspense fallback={null}><LerQR onClose={() => setLendo(false)} onNota={daNota} /></Suspense>}

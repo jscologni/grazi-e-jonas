@@ -22,7 +22,7 @@ function falso(tabela = ''): unknown {
   })
   return p
 }
-Object.assign(supabase, { from: (t: string) => falso(t), rpc: () => falso() })
+Object.assign(supabase, { from: (t: string) => falso(t), rpc: (nome: string, args: unknown) => { ((window as unknown as { __gravados: unknown[] }).__gravados ??= []).push({ tabela: nome, op: 'rpc', row: args }); return falso() } })
 const CAT = [
   ['7896089011357', 'Café Torrado e Moído a Vácuo Tradicional Pilão 500g', [['bistek', 'Bistek', 21.6, 29.84], ['giassi', 'Giassi', 22.98], ['angeloni', 'Angeloni', 22.99], ['atacadao', 'Atacadão', 20.9]]],
   ['7896089013405', 'Café Pilão Extra Forte 500g', [['angeloni', 'Angeloni', 22.99, 25.99], ['bistek', 'Bistek', 21.6]]],
