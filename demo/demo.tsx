@@ -8,10 +8,12 @@ import { StoreCtx, type Ctx, type Data } from '../src/lib/store'
 import { supabase } from '../src/lib/supabase'
 
 // Na demonstração nada vai para o banco de verdade: toda chamada "dá certo" sem gravar.
-function falso(): unknown {
+function falso(tabela = ''): unknown {
   let unico = false
   const p: unknown = new Proxy(() => {}, {
     get: (_t, k) => {
+      // guarda o que seria gravado, para os testes conferirem
+      if (k === 'insert' || k === 'update') return (row: unknown) => { ((window as unknown as { __gravados: unknown[] }).__gravados ??= []).push({ tabela, op: k, row }); return p }
       if (k === 'then') return (ok: (v: unknown) => void) => ok({ data: unico ? { id: crypto.randomUUID() } : [], error: null })
       if (k === 'single' || k === 'maybeSingle') unico = true
       return () => p
@@ -20,7 +22,7 @@ function falso(): unknown {
   })
   return p
 }
-Object.assign(supabase, { from: () => falso(), rpc: () => falso() })
+Object.assign(supabase, { from: (t: string) => falso(t), rpc: () => falso() })
 const CAT = [
   ['7896089011357', 'Café Torrado e Moído a Vácuo Tradicional Pilão 500g', [['bistek', 'Bistek', 21.6, 29.84], ['giassi', 'Giassi', 22.98], ['angeloni', 'Angeloni', 22.99], ['atacadao', 'Atacadão', 20.9]]],
   ['7896089013405', 'Café Pilão Extra Forte 500g', [['angeloni', 'Angeloni', 22.99, 25.99], ['bistek', 'Bistek', 21.6]]],

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { ClipboardPaste, FileUp } from 'lucide-react'
 import { classificar, lerExtrato, type Extrato, type Mov } from '../lib/extrato'
-import { accountBalance, contaPadrao } from '../lib/finance'
+import { accountBalance, contaPadrao, mesDaConta } from '../lib/finance'
 import { dayMonth, daysBetween, firstName, money, monthName, monthOf, norm, parseISO, parseMoney, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -125,7 +125,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
         bill = s.bills.find(b => {
           const palavras = norm(b.name).split(' ').filter(p => p.length >= 3)
           return b.active && palavras.length > 0 && !contasUsadas.has(`${b.id}|${mes}`) && palavras.every(p => desc.includes(p))
-            && !s.txs.some(t => t.bill_id === b.id && t.month === mes)
+            && !s.txs.some(t => t.bill_id === b.id && mesDaConta(t) === mes)
         }) ?? null
         if (bill) contasUsadas.add(`${bill.id}|${mes}`)
       }

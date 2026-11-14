@@ -78,7 +78,9 @@ async function diario() {
     const itens: { nome: string; valor: number; d: number }[] = []
     const [{ data: bills }, { data: pagas }, { data: cards }, { data: compras }, { data: pagtos }] = await Promise.all([
       db.from('bills').select('id, name, amount, due_day').eq('household_id', casa).eq('active', true),
-      db.from('transactions').select('bill_id, month').eq('household_id', casa).in('month', meses).not('bill_id', 'is', null),
+      // conta paga no cartão: `month` é o da fatura, então o mês da conta sai do dia da cobrança
+      db.from('transactions').select('bill_id, month, card_id, occurred_on').eq('household_id', casa).not('bill_id', 'is', null)
+        .or(`month.in.(${meses.join(',')}),and(card_id.not.is.null,occurred_on.gte.${meses[0]})`),
       db.from('cards').select('id, name, due_day').eq('household_id', casa).eq('archived', false),
       db.from('transactions').select('card_id, month, amount').eq('household_id', casa).in('month', meses).eq('kind', 'out').not('card_id', 'is', null),
       db.from('card_payments').select('card_id, month, amount').eq('household_id', casa).in('month', meses),
@@ -86,7 +88,7 @@ async function diario() {
     for (const mes of meses) {
       for (const b of bills ?? []) {
         const d = dias(hoje, venc(mes, b.due_day))
-        const paga = (pagas ?? []).some(p => p.bill_id === b.id && p.month === mes)
+        const paga = (pagas ?? []).some(p => p.bill_id === b.id && (p.card_id ? `${p.occurred_on.slice(0, 8)}01` : p.month) === mes)
         if (!paga && d >= -1 && d <= 3) itens.push({ nome: b.name, valor: +b.amount, d })
       }
       for (const c of cards ?? []) {

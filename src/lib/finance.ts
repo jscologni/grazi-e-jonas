@@ -26,12 +26,15 @@ export function summary(month: string, txs: Tx[], moves: GoalMove[], accounts: A
   return { inicial, entrou, saiu, guardou, sobra: inicial + entrou - saiu - guardou }
 }
 
+/** Mês da conta fixa que o pagamento quita. No cartão, `month` é o da fatura; vale o dia da cobrança. */
+export const mesDaConta = (t: Pick<Tx, 'card_id' | 'month' | 'occurred_on'>) => t.card_id ? monthOf(t.occurred_on) : t.month
+
 export type BillState = { bill: Bill; due: Date; paid?: Tx; days: number; status: 'paga' | 'vencida' | 'hoje' | 'logo' | 'aberta' }
 export function billsFor(month: string, bills: Bill[], txs: Tx[]): BillState[] {
   const now = new Date()
   return bills.filter(b => b.active).map(bill => {
     const due = dueDate(month, bill.due_day)
-    const paid = txs.find(t => t.bill_id === bill.id && t.month === month)
+    const paid = txs.find(t => t.bill_id === bill.id && mesDaConta(t) === month)
     const days = daysBetween(now, due)
     const status: BillState['status'] = paid ? 'paga' : days < 0 ? 'vencida' : days === 0 ? 'hoje' : days <= 5 ? 'logo' : 'aberta'
     return { bill, due, paid, days, status }

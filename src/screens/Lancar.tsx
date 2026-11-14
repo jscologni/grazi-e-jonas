@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { METHODS } from '../lib/catalog'
-import { contaPadrao, contaVale, invoiceMonth } from '../lib/finance'
+import { contaPadrao, contaVale, invoiceMonth, mesDaConta } from '../lib/finance'
 import { addMonths, money, monthOf, monthShort, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -69,7 +69,7 @@ export function Lancar({ open, onClose, tx, kindInicial = 'out' }: { open: boole
           // só recalcula a fatura se a compra mudou de dia ou de cartão ("valor de antes do app" fica onde foi posto)
           month: base.card_id && card
             ? (parcelado || (tx.occurred_on === data && tx.card_id === base.card_id) ? tx.month : invoiceMonth(data, card))
-            : (tx.bill_id ? tx.month : monthOf(data)),
+            : (tx.bill_id ? mesDaConta(tx) : monthOf(data)),
         }).eq('id', tx.id)
         if (error) throw error
         s.toast('Lançamento atualizado')

@@ -385,7 +385,7 @@ function Contas({ month }: { month: string }) {
               <button className="meio" onClick={() => setPagar(e)} style={{ textAlign: 'left' }}>
                 <div className="nome">{e.bill.name}</div>
                 <div className="info">
-                  {e.paid ? `paga em ${dayMonth(e.paid.occurred_on)} por ${s.memberName(e.paid.member_id)}` : `vence ${dayMonth(iso(e.due))}`}
+                  {e.paid?.card_id ? `no cartão ${s.cards.find(k => k.id === e.paid!.card_id)?.name ?? ''} · fatura de ${monthShort(e.paid.month)}` : e.paid ? `paga em ${dayMonth(e.paid.occurred_on)} por ${s.memberName(e.paid.member_id)}` : `vence ${dayMonth(iso(e.due))}`}
                   {e.bill.variable && !e.paid ? ' · valor muda' : ''}
                 </div>
               </button>
@@ -412,11 +412,22 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
   const [metodo, setMetodo] = useState<Method>('pix')
   const [quem, setQuem] = useState<string | null>(null)
   const [conta, setConta] = useState<string | null>(null)
+  const [cartao, setCartao] = useState<string | null>(null)
+  const cards = s.cards.filter(k => !k.archived)
   if (estado && id !== estado.bill.id) {
     setId(estado.bill.id); c.set(+estado.bill.amount); setQuem(s.me?.user_id ?? null); setConta(contaPadrao(s.accounts, s.me?.user_id))
+    // repete a forma de pagamento da última vez (conta cobrada no cartão já abre no cartão)
+    const ultima = s.txs.filter(t => t.bill_id === estado.bill.id).sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))[0]
+    const noCartao = ultima?.method === 'credito' && cards.length > 0
+    setMetodo(noCartao ? 'credito' : ultima && ultima.method !== 'vale' && ultima.method !== 'credito' ? ultima.method : 'pix')
+    setCartao(cards.find(k => k.id === ultima?.card_id)?.id ?? cards[0]?.id ?? null)
     setSalvando(false)
   }
   if (!estado && id) setId(null)
+  const card = metodo === 'credito' ? cards.find(k => k.id === cartao) : undefined
+  // no cartão, a cobrança cai no dia de vencimento da conta e vai para a fatura daquele dia
+  const cobranca = estado ? iso(dueDate(month, estado.bill.due_day)) : today()
+  const fatura = card ? invoiceMonth(cobranca, card) : null
   const pagar = async () => {
     if (salvando || !estado || c.value <= 0) return
     setSalvando(true)
@@ -424,7 +435,10 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
       const contasCat = s.categories.find(k => k.kind === 'out' && k.name === 'Contas')
       const { error } = await supabase.from('transactions').insert({
         kind: 'out', amount: c.value, description: estado.bill.name, category_id: estado.bill.category_id ?? contasCat?.id ?? null,
-        member_id: quem, occurred_on: today(), month, method: metodo, bill_id: estado.bill.id, account_id: conta,
+        member_id: quem, method: metodo, bill_id: estado.bill.id,
+        ...(card && fatura
+          ? { occurred_on: cobranca, month: fatura, card_id: card.id, account_id: null, installment: 1, installments: 1 }
+          : { occurred_on: today(), month, account_id: conta }),
       })
       if (error) {
         setSalvando(false)
@@ -448,7 +462,9 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
     <Sheet open={!!estado} onClose={salvando ? () => {} : onClose} title={estado ? `${estado.bill.emoji} ${estado.bill.name}` : ''}>
       {estado?.paid ? (
         <>
-          <p>Paga em {dayMonth(estado.paid.occurred_on)} por {s.memberName(estado.paid.member_id)}: <b>{money(+estado.paid.amount)}</b>.</p>
+          <p>{estado.paid.card_id
+            ? <>No cartão {s.cards.find(k => k.id === estado.paid!.card_id)?.name ?? ''}, fatura de {monthShort(estado.paid.month)}, por {s.memberName(estado.paid.member_id)}: </>
+            : <>Paga em {dayMonth(estado.paid.occurred_on)} por {s.memberName(estado.paid.member_id)}: </>}<b>{money(+estado.paid.amount)}</b>.</p>
           <button className="btn fantasma cheio" onClick={desfazer}>Desfazer pagamento</button>
         </>
       ) : (
@@ -457,14 +473,22 @@ function PagarConta({ estado, month, onClose }: { estado: BillState | null; mont
           <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
           <Teclado onKey={salvando ? () => {} : c.press} />
           <div className="campo"><span>Pago com</span>
-            <div className="chips">{METHODS.filter(m => m.id !== 'credito' && m.id !== 'vale').map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => !salvando && setMetodo(m.id as Method)}>{m.label}</button>)}</div>
+            <div className="chips">{METHODS.filter(m => m.id !== 'vale' && (m.id !== 'credito' || cards.length)).map(m => <button key={m.id} className="chip" aria-pressed={metodo === m.id} onClick={() => !salvando && setMetodo(m.id as Method)}>{m.label}</button>)}</div>
+            {metodo === 'credito' && (
+              <>
+                <div className="chips" style={{ marginTop: 8 }}>
+                  {cards.map(k => <button key={k.id} className="chip" aria-pressed={cartao === k.id} onClick={() => !salvando && setCartao(k.id)}>💳 {k.name}</button>)}
+                </div>
+                {fatura && <p className="leve pequeno" style={{ margin: '8px 0 0' }}>Cobrança dia {dayMonth(cobranca)}, entra na fatura de {monthShort(fatura)}.</p>}
+              </>
+            )}
           </div>
           <div className="campo"><span>Quem pagou</span>
             <div className="chips">{s.members.map(m => <button key={m.user_id} className="chip" aria-pressed={quem === m.user_id} onClick={() => { if (!salvando) { setQuem(m.user_id); setConta(contaPadrao(s.accounts, m.user_id)) } }}><Adesivo fruit={m.fruit} size={20} /> {m.name}</button>)}</div>
           </div>
-          <EscolherConta value={conta} onChange={salvando ? () => {} : setConta} titulo="Saiu de qual conta" />
-          <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0 || salvando}>
-            {salvando ? 'Salvando…' : 'Marcar como paga'}
+          {metodo !== 'credito' && <EscolherConta value={conta} onChange={salvando ? () => {} : setConta} titulo="Saiu de qual conta" />}
+          <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={pagar} disabled={c.value <= 0 || salvando || (metodo === 'credito' && !card)}>
+            {salvando ? 'Salvando…' : metodo === 'credito' ? 'Lançar no cartão' : 'Marcar como paga'}
           </button>
         </>
       )}
