@@ -117,6 +117,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
       const igual = importado ? undefined : candidatos.find(t => !usados.has(t.id) && t.kind === (valor > 0 ? 'in' : 'out') && Math.abs(+t.amount - abs) < 0.005 && perto(t.occurred_on))
       if (igual) usados.add(igual.id)
       const faturaPaga = valor < 0 && s.cardPays.some(p => p.account_id === conta.id && Math.abs(+p.amount - abs) < 0.005 && perto(p.paid_on))
+      const transferida = s.transfers.some(t => (valor < 0 ? t.from_account : t.to_account) === conta.id && Math.abs(+t.amount - abs) < 0.005 && perto(t.occurred_on))
       const desc = ` ${norm(m.desc)} `
       const entreVoces = !cl.naoConta && /pix|transfer/.test(desc) && nomes.some(n => desc.includes(` ${n}`))
       let bill: Bill | null = null
@@ -132,13 +133,14 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
       const [tag, padrao] = importado ? ['já importado', false] as const
         : igual ? ['já lançado', false] as const
         : faturaPaga ? ['fatura já paga aqui', false] as const
+        : transferida ? ['transferência já lançada', false] as const
         : cl.naoConta ? [cl.naoConta, false] as const
         : entreVoces ? ['entre vocês', false] as const
         : bill ? [`conta fixa: ${bill.name}`, true] as const
         : [null, true] as const
       return { mov: m, valor, tag, padrao, bloqueado: importado, vincular: igual && !igual.account_id ? igual.id : null, bill, categoria: cl.categoria, metodo: cl.metodo }
     })
-  }, [extrato, conta, inicio, invertidos, s.txs, s.cardPays, s.bills, s.members])
+  }, [extrato, conta, inicio, invertidos, s.txs, s.cardPays, s.transfers, s.bills, s.members])
 
   const marcado = (l: Linha) => !l.bloqueado && (troca[l.mov.id] ?? l.padrao)
   const escolhidas = linhas.filter(marcado)
@@ -149,7 +151,7 @@ export function ImportarExtrato({ open, onClose, contaInicial = null }: { open: 
   // mesma conta que o banco faz em importar_extrato: saldo no fim = inicial + movimentos do período
   const inicial = useMemo(() => {
     if (!conta || !saldoOk || !inicio) return null
-    const ja = accountBalance({ ...conta, initial_balance: 0, initial_date: inicio }, s.txs.filter(t => t.occurred_on <= ate), s.cardPays.filter(p => p.paid_on <= ate))
+    const ja = accountBalance({ ...conta, initial_balance: 0, initial_date: inicio }, s.txs.filter(t => t.occurred_on <= ate), s.cardPays.filter(p => p.paid_on <= ate), s.transfers.filter(t => t.occurred_on <= ate))
     const novos = linhas.filter(l => l.mov.data <= ate).reduce((t, l) => t + (marcado(l) || l.vincular ? l.valor : 0), 0)
     return Math.round((saldo - ja - novos) * 100) / 100
   }, [conta, saldoOk, saldo, inicio, ate, s.txs, s.cardPays, linhas, troca]) // eslint-disable-line react-hooks/exhaustive-deps

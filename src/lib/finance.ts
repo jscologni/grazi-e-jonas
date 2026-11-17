@@ -1,5 +1,5 @@
 import { addMonths, daysBetween, dueDate, monthOf, norm, parseISO } from './format'
-import type { Account, Bill, Card, CardPayment, Goal, GoalMove, Market, Price, Tx } from './types'
+import type { Account, Bill, Card, CardPayment, Goal, GoalMove, Market, Price, Transfer, Tx } from './types'
 
 /**
  * Em que mês uma compra no crédito pesa no caixa: o mês de vencimento da fatura.
@@ -105,7 +105,7 @@ export const choreStatus = (lastDone: string | null, every: number) => {
 }
 
 /** Saldo de uma conta: saldo inicial + entradas − saídas (fora crédito) − faturas pagas, a partir do dia do saldo inicial */
-export function accountBalance(acc: Account, txs: Tx[], pays: CardPayment[]) {
+export function accountBalance(acc: Account, txs: Tx[], pays: CardPayment[], transf: Transfer[] = []) {
   let v = +acc.initial_balance
   for (const t of txs) {
     if (t.account_id !== acc.id || t.occurred_on < acc.initial_date) continue
@@ -113,13 +113,18 @@ export function accountBalance(acc: Account, txs: Tx[], pays: CardPayment[]) {
     else if (t.method !== 'credito') v -= +t.amount
   }
   for (const p of pays) if (p.account_id === acc.id && p.paid_on >= acc.initial_date) v -= +p.amount
+  for (const t of transf) {
+    if (t.occurred_on < acc.initial_date) continue
+    if (t.to_account === acc.id) v += +t.amount
+    if (t.from_account === acc.id) v -= +t.amount
+  }
   return v
 }
 
 /** Soma do saldo de todas as contas ativas; null se ainda não há conta cadastrada */
-export function saldoContas(accounts: Account[], txs: Tx[], pays: CardPayment[]) {
+export function saldoContas(accounts: Account[], txs: Tx[], pays: CardPayment[], transf: Transfer[] = []) {
   const ativas = accounts.filter(a => !a.archived)
-  return ativas.length ? ativas.reduce((t, a) => t + accountBalance(a, txs, pays), 0) : null
+  return ativas.length ? ativas.reduce((t, a) => t + accountBalance(a, txs, pays, transf), 0) : null
 }
 
 /** Cartão alimentação ativo da casa (o da pessoa, se tiver) */
@@ -129,9 +134,9 @@ export const contaVale = (accounts: Account[], member?: string | null) => {
 }
 
 /** Saldo somado dos cartões alimentação; null se não há nenhum */
-export function saldoVale(accounts: Account[], txs: Tx[], pays: CardPayment[]) {
+export function saldoVale(accounts: Account[], txs: Tx[], pays: CardPayment[], transf: Transfer[] = []) {
   const vales = accounts.filter(a => !a.archived && a.kind === 'alimentacao')
-  return vales.length ? vales.reduce((t, a) => t + accountBalance(a, txs, pays), 0) : null
+  return vales.length ? vales.reduce((t, a) => t + accountBalance(a, txs, pays, transf), 0) : null
 }
 
 /** Fatura de um cartão num mês: total das compras, quanto já foi pago e quanto falta */

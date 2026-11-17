@@ -34,7 +34,7 @@ export function Inicio({ ir }: { ir: Ir }) {
   const tarefas = s.chores.filter(c => choreStatus(c.last_done_at, c.every_days).late)
   const outro = s.members.find(m => m.user_id !== s.me?.user_id)
   const bancos = s.accounts.filter(a => !a.archived)
-  const nasContas = bancos.reduce((t, a) => t + accountBalance(a, s.txs, s.cardPays), 0)
+  const nasContas = bancos.reduce((t, a) => t + accountBalance(a, s.txs, s.cardPays, s.transfers), 0)
 
   // contas de banco primeiro, cartão alimentação por último
   const contasOrdenadas = [...bancos].sort((a, b) => Number(ehVale(a)) - Number(ehVale(b)) || a.name.localeCompare(b.name))
@@ -95,7 +95,7 @@ export function Inicio({ ir }: { ir: Ir }) {
         {bancos.length > 0 && (
           <div className={`card-financeiro-contas ${rola ? 'rola' : ''}`} ref={contasRef} onScroll={medirContas}>
             {contasOrdenadas.map((a, n) => {
-              const v = accountBalance(a, s.txs, s.cardPays)
+              const v = accountBalance(a, s.txs, s.cardPays, s.transfers)
               const dono = s.member(a.owner)
               const vale = ehVale(a)
               return (

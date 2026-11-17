@@ -35,4 +35,5 @@ export interface Goal { id: string; name: string; emoji: string; target: number;
 export interface GoalMove { id: string; goal_id: string; amount: number; member_id: string | null; month: string; note: string | null; created_at: string }
 export interface Account { id: string; name: string; kind?: 'conta' | 'alimentacao'; owner: string | null; initial_balance: number; initial_date: string; archived: boolean; created_at: string }
 export interface CardPayment { id: string; card_id: string; account_id: string | null; amount: number; month: string; paid_on: string; member_id: string | null; created_at: string }
+export interface Transfer { id: string; from_account: string; to_account: string; amount: number; occurred_on: string; member_id: string | null; created_at: string }
 export interface ProductPick { id: string; norm: string; ean: string; product: string }

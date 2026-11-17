@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { FileSpreadsheet, Landmark, UtensilsCrossed } from 'lucide-react'
-import { accountBalance, faturasAPagar, saldoVale } from '../lib/finance'
+import { ArrowLeftRight, FileSpreadsheet, Landmark, UtensilsCrossed, X } from 'lucide-react'
+import { accountBalance, contaPadrao, faturasAPagar, saldoVale } from '../lib/finance'
 import { dayMonth, money, today } from '../lib/format'
 import { say, useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
@@ -9,7 +9,7 @@ import { Adesivo, Cartaz, Sheet, Teclado, useCents } from '../ui'
 import { ImportarExtrato } from './Extrato'
 
 /** Chips para escolher de qual conta o dinheiro sai (ou em qual entra) */
-export function EscolherConta({ value, onChange, titulo = 'De qual conta' }: { value: string | null; onChange: (id: string | null) => void; titulo?: string }) {
+export function EscolherConta({ value, onChange, titulo = 'De qual conta', nenhuma = true }: { value: string | null; onChange: (id: string | null) => void; titulo?: string; nenhuma?: boolean }) {
   const s = useStore()
   const contas = s.accounts.filter(a => !a.archived)
   if (!contas.length) return null
@@ -24,7 +24,7 @@ export function EscolherConta({ value, onChange, titulo = 'De qual conta' }: { v
             </button>
           )
         })}
-        <button type="button" className="chip" aria-pressed={value === null} onClick={() => onChange(null)}>Nenhuma</button>
+        {nenhuma && <button type="button" className="chip" aria-pressed={value === null} onClick={() => onChange(null)}>Nenhuma</button>}
       </div>
     </div>
   )
@@ -34,11 +34,12 @@ export function Saldos() {
   const s = useStore()
   const [editar, setEditar] = useState<Account | 'nova' | null>(null)
   const [extrato, setExtrato] = useState<{ conta: string | null } | null>(null)
+  const [transferir, setTransferir] = useState(false)
   const contas = s.accounts.filter(a => !a.archived)
-  const saldos = contas.map(a => ({ a, v: accountBalance(a, s.txs, s.cardPays) }))
+  const saldos = contas.map(a => ({ a, v: accountBalance(a, s.txs, s.cardPays, s.transfers) }))
   const total = saldos.reduce((t, x) => t + x.v, 0)
   const faturas = faturasAPagar(s.cards, s.txs, s.cardPays, today())
-  const livre = total - (saldoVale(s.accounts, s.txs, s.cardPays) ?? 0) - faturas // cartão alimentação não paga fatura
+  const livre = total - (saldoVale(s.accounts, s.txs, s.cardPays, s.transfers) ?? 0) - faturas // cartão alimentação não paga fatura
   const donos = [...s.members.map(m => m.user_id), null]
 
   return (
@@ -88,6 +89,8 @@ export function Saldos() {
           </section>
         )
       })}
+      {contas.length > 1 && <button className="btn fantasma cheio" style={{ marginTop: 14 }} onClick={() => setTransferir(true)}><ArrowLeftRight size={18} /> Transferir entre contas</button>}
+      <Transferencias />
       {contas.length > 0 && (
         <p className="pequeno leve" style={{ margin: '12px 4px 0' }}>
           O saldo muda com o que vocês lançam escolhendo a conta: entradas somam, gastos no Pix/débito/dinheiro/boleto
@@ -96,7 +99,82 @@ export function Saldos() {
       )}
       <EditarContaBanco conta={editar} onClose={() => setEditar(null)} onExtrato={id => { setEditar(null); setExtrato({ conta: id }) }} />
       <ImportarExtrato open={!!extrato} contaInicial={extrato?.conta ?? null} onClose={() => setExtrato(null)} />
+      <Transferir open={transferir} onClose={() => setTransferir(false)} />
     </>
+  )
+}
+
+/** Últimas transferências, com desfazer (não é gasto nem entrada: só troca o dinheiro de conta) */
+function Transferencias() {
+  const s = useStore()
+  const [apagando, setApagando] = useState<string | null>(null)
+  const ultimas = s.transfers.slice(0, 5)
+  if (!ultimas.length) return null
+  const nome = (id: string) => s.accounts.find(a => a.id === id)?.name ?? 'conta apagada'
+  const desfazer = async (id: string) => {
+    if (apagando || !confirm('Desfazer esta transferência? Os saldos voltam ao que eram.')) return
+    setApagando(id)
+    const { error } = await supabase.from('transfers').delete().eq('id', id)
+    if (error) s.toast(say(error), 'erro')
+    else { s.toast('Transferência desfeita'); await s.reload() }
+    setApagando(null)
+  }
+  return (
+    <>
+      <div className="secao"><h2 className="subtitulo">Transferências</h2></div>
+      <div className="folha-lista">
+        {ultimas.map(t => (
+          <div className="linha" key={t.id}>
+            <span aria-hidden style={{ width: 30, display: 'grid', placeItems: 'center' }}><ArrowLeftRight size={20} /></span>
+            <div className="meio"><div className="nome" style={{ whiteSpace: 'normal' }}>{nome(t.from_account)} → {nome(t.to_account)}</div>
+              <div className="info">{dayMonth(t.occurred_on)} · {s.memberName(t.member_id)}</div></div>
+            <span className="valor">{money(+t.amount)}</span>
+            <button className="fechar" onClick={() => desfazer(t.id)} disabled={apagando === t.id} aria-label="Desfazer transferência"><X size={18} /></button>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function Transferir({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const s = useStore()
+  const c = useCents(0)
+  const [aberto, setAberto] = useState(false)
+  const [de, setDe] = useState<string | null>(null)
+  const [para, setPara] = useState<string | null>(null)
+  const [data, setData] = useState(today())
+  const [salvando, setSalvando] = useState(false)
+  if (open && !aberto) {
+    const origem = contaPadrao(s.accounts, s.me?.user_id)
+    setAberto(true); c.set(0); setDe(origem); setData(today()); setSalvando(false)
+    const outras = s.accounts.filter(a => !a.archived && a.id !== origem)
+    setPara((outras.find(a => a.kind !== 'alimentacao') ?? outras[0])?.id ?? null)
+  }
+  if (!open && aberto) setAberto(false)
+
+  const salvar = async () => {
+    if (salvando || c.value <= 0 || !de || !para || de === para) return
+    setSalvando(true)
+    const { error } = await supabase.from('transfers').insert({ from_account: de, to_account: para, amount: c.value, occurred_on: data, member_id: s.me?.user_id ?? null })
+    if (error) { setSalvando(false); return s.toast(say(error), 'erro') }
+    s.toast(`${money(c.value)} transferido`)
+    await s.reload(); onClose()
+  }
+  return (
+    <Sheet open={open} onClose={salvando ? () => {} : onClose} title="Transferir entre contas">
+      <p className="leve pequeno" style={{ margin: 0 }}>Não conta como gasto nem como entrada: só passa o dinheiro de uma conta para a outra.</p>
+      <div className="visor sai cabe"><Cartaz value={c.value} size="g" /></div>
+      <Teclado onKey={salvando ? () => {} : c.press} />
+      <EscolherConta value={de} onChange={id => !salvando && setDe(id)} titulo="Sai de" nenhuma={false} />
+      <EscolherConta value={para} onChange={id => !salvando && setPara(id)} titulo="Entra em" nenhuma={false} />
+      <label className="campo"><span>Data</span>
+        <input className="entrada" type="date" value={data} onChange={e => !salvando && setData(e.target.value || today())} /></label>
+      {de && de === para && <p className="aviso">Escolha contas diferentes.</p>}
+      <button className="btn folha cheio" style={{ marginTop: 20 }} onClick={salvar} disabled={salvando || c.value <= 0 || !de || !para || de === para}>
+        {salvando ? 'Salvando…' : 'Transferir'}
+      </button>
+    </Sheet>
   )
 }
 

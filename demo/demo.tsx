@@ -122,6 +122,7 @@ const data: Data = {
     { id: 'a2', name: 'Caixa', owner: G, initial_balance: 1820.5, initial_date: iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), archived: false, created_at: antes(600) },
   ],
   picks: [],
+  transfers: [],
   cardPays: [{ id: 'p1', card_id: 'k1', account_id: 'a1', amount: 150, month: mes, paid_on: hoje, member_id: J, created_at: antes(2) }],
   moves: [
     { id: id(), goal_id: 'g1', amount: 2300, member_id: J, month: addMonths(mes, -2), note: null, created_at: antes(800) },
